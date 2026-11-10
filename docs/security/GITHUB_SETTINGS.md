@@ -27,7 +27,7 @@ Earlier hardening work recorded these settings as enabled. Preserve that histori
 - Build/test both the runner's current default toolchain and Xcode 26.0.1 (Swift 6.2), the declared minimum. A future runner-image removal must fail visibly and be addressed without silently dropping minimum-version coverage.
 - Review dependency usage, licenses, resolution and vulnerabilities before adding packages. There are no third-party Swift package dependencies.
 - Never include real clipboard contents, secrets, private identities or work addresses in fixtures, logs or artifacts.
-- Use explicit `StanleyLl0yd` / verified GitHub noreply author and committer fields when creating commits through Git data APIs, and verify the resulting metadata before updating a branch. Check squash-merge identity behavior separately; the available merge interfaces cannot explicitly set both identity names. Do not assume a private account profile is safe for automatic commit metadata.
+- The owner explicitly authorized the GitHub profile name for Git metadata on 2026-11-10. Use that profile name and verified GitHub noreply email for new API commits; protected squash merges may use GitHub's verified service committer. Verify resulting metadata without printing private identity values. PR #1 was merged with the authorized profile author, noreply email and verified GitHub committer.
 
 ## Evidence and artifact retention
 
@@ -45,8 +45,8 @@ Earlier hardening work recorded these settings as enabled. Preserve that histori
 
 ## Owner-authorized M0 hardware test
 
-On 2026-11-10 the owner explicitly requested a downloadable app to test M0. The fixed `v0.0.1-m0.1` prerelease may originate from the exact reviewed `release/m0-macos-test` PR commit while identity-safe protected-main integration remains blocked. Publication requires successful exact-source macOS CI, Swift analysis, CodeQL PR result, a recorded exact-source packaging/security review, verified public Git identity, a verified universal app/ZIP and an immutable tag. The workflow only creates a prerelease, refuses overwrites, checks both draft and anonymous public download bytes, and cannot publish a production version.
+On 2026-11-10 the owner explicitly requested a downloadable app to test M0. The fixed `v0.0.1-m0.1` prerelease may originate from the exact reviewed `release/m0-macos-test` PR commit before protected-main integration. Publication requires successful exact-source macOS CI, Swift analysis, CodeQL PR result, a recorded exact-source packaging/security review, verified public Git identity, a verified universal app/ZIP and an immutable tag. The one-shot workflow is preserved at the immutable published tag; it is retired from the integration branch after successful publication to prevent repeated attempts to publish an existing version. It only creates a prerelease, refuses overwrites, checks both draft and anonymous public download bytes, and cannot publish a production version.
 
-This explicit M0-only authorization does not close M0, replace real-Mac acceptance, waive administrative verification or weaken production release signing/notarization and protected-main requirements. See `docs/security/NEIGHBOR_REVIEW_2026-11-10.md`.
+This explicit M0-only authorization does not close M0, replace real-Mac acceptance, waive administrative verification or weaken production release signing/notarization and protected-main requirements. The published tag and its assets remain bound to source `39f5f35d44e354b112c95006bee7d54c2daffd02`; subsequent documentation/integration commits do not rewrite that release. See `docs/security/NEIGHBOR_REVIEW_2026-11-10.md`.
 
 See `AGENTS.md`, `docs/agent/AUDIT_REFACTOR.md` and M0 exit issue #2.

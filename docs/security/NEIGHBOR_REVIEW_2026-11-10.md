@@ -20,3 +20,11 @@ The M0 test build adopts TreMana's app/ZIP/ad-hoc/checksum/download verification
 The owner's 2026-11-10 instruction authorizes this **M0 hardware-acceptance prerelease** from the exact reviewed PR commit while protected-main integration is blocked. It also authorizes the owner to download/install/test the binary. Source edits, compilation, tests and artifact production remain GitHub-only. A fixed protected version tag binds the prerelease to that SHA; this narrowly scoped test publication is not production release authorization, milestone acceptance, a main-branch bypass, Developer ID signing or Apple notarization.
 
 Release evidence and manual acceptance remain in issue #2. Production releases retain the protected-main, signing/notarization and explicit authorization gates.
+
+## Owner clarification and integration
+
+Later on 2026-11-10 the owner explicitly authorized using the GitHub profile name for commit metadata. The author-name blocker is therefore resolved by authorization, with the verified GitHub noreply email retained. PR #1 was protected-squash-merged as `548af44dbc788f05ec8063528c5fd44a528f5ed2`; author/profile equality, noreply email and the verified GitHub service committer were checked without reproducing profile identity values here. Exact-main CI `42876007183` passed.
+
+The M0 test release was successfully published from `39f5f35d44e354b112c95006bee7d54c2daffd02`. Its one-shot publication workflow remains preserved at that immutable tag and in Actions run `42843564520`, attempt 2, and is retired from the integration branch after publication. This avoids unused default-branch automation and attempts to overwrite the existing release. Packaging source, bundle configuration, checksums, release notes and byte-verified assets remain in GitHub. The published tag/assets are not rewritten.
+
+Actions readback additionally verified zero open CodeQL alerts, active no-bypass branch/tag rulesets and private vulnerability reporting. Other owner-controlled settings still require evidence because the available tokens return 403; this is tracked separately from the resolved author-name issue in #2.
