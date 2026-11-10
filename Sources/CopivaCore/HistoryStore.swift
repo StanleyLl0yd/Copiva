@@ -125,17 +125,20 @@ public actor HistoryStore {
                 let result = sqlite3_step(statement)
                 if result == SQLITE_DONE { return clips }
                 try HistoryConnection.check(result, expecting: SQLITE_ROW)
-                let size = Int(sqlite3_column_bytes(statement, 1))
-                let timestamp = sqlite3_column_double(statement, 2)
+                // Inspect storage classes before column accessors can convert their values.
                 let timestampType = sqlite3_column_type(statement, 2)
                 guard sqlite3_column_type(statement, 0) == SQLITE_INTEGER,
-                      sqlite3_column_int64(statement, 0) > 0,
+                      sqlite3_column_type(statement, 1) == SQLITE_TEXT,
                       timestampType == SQLITE_FLOAT || timestampType == SQLITE_INTEGER else {
                     throw HistoryError.unrecognizedDatabase
                 }
-                guard sqlite3_column_type(statement, 1) == SQLITE_TEXT,
-                      size > 0, size <= Self.maximumTextBytes,
-                      timestamp.isFinite,
+                let id = sqlite3_column_int64(statement, 0)
+                let timestamp = sqlite3_column_double(statement, 2)
+                guard id > 0, timestamp.isFinite else {
+                    throw HistoryError.unrecognizedDatabase
+                }
+                let size = Int(sqlite3_column_bytes(statement, 1))
+                guard size > 0, size <= Self.maximumTextBytes,
                       let bytes = sqlite3_column_text(statement, 1),
                       let text = String(bytes: UnsafeBufferPointer(
                         start: bytes, count: size),
@@ -143,7 +146,7 @@ public actor HistoryStore {
                     throw HistoryError.invalidText
                 }
                 clips.append(TextClip(
-                    id: sqlite3_column_int64(statement, 0), text: text,
+                    id: id, text: text,
                     copiedAt: Date(timeIntervalSince1970: timestamp)))
             }
         }
