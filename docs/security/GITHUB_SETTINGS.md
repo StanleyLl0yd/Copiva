@@ -1,33 +1,46 @@
 # GitHub repository security baseline
 
-This document records Copiva's protection and release-security expectations. Re-verify GitHub-hosted settings directly when required checks, credentials, trust boundaries or release automation change. Repository rulesets and Actions settings are operational controls, not merely documentation.
+Re-verify GitHub-hosted controls when checks, credentials, trust boundaries or release automation change. A documented expectation is not proof that a setting is enabled.
 
-## Verified baseline (2026-11-10)
+## Verified through GitHub API (2026-11-10)
 
-- Public repository with protected default branch `main`.
-- Active branch ruleset `Copiva main: PR and CI required` (ID `26940387`), no bypass actors: pull request required, squash-only merge, zero mandatory human approvals for a sole maintainer, conversation resolution, linear history, blocked deletion and non-fast-forward update.
-- Strict GitHub Actions check `macOS 26 / Swift`, scoped to GitHub Actions integration `15368`.
-- GitHub Actions restricted to GitHub-owned actions; workflow token read-only and cannot approve pull requests.
-- CodeQL default setup for Swift is configured; initial setup/analysis completed successfully.
-- Dependabot alerts and security updates, GitHub secret scanning and push protection were enabled via the repository hardening scripts.
-- GitHub `noreply` identity is the required identity for Copiva commits. No legal name, private contact address or clipboard payloads in public artifacts.
+- Public repository; default branch `main` is protected.
+- Active branch ruleset `26940387`: PR required, squash-only merge, linear history, conversation resolution, no force-push/deletion and no bypass actors. Zero mandatory human approvals supports the sole maintainer.
+- Strict required check `macOS 26 / Swift` is bound to GitHub Actions integration `15368`.
 - Merge commits and rebase merges are disabled; squash merges and branch deletion on merge are enabled.
+- Active tag ruleset `26948978` covers `refs/tags/v*`, blocks update/deletion and has no bypass actors. Initial tag creation remains allowed; no tags or releases exist.
+- PR #1 at `9f65daa54a642adcdbb4ccc9bb3dad28c9dc0944` passed macOS CI, Swift CodeQL analysis and the CodeQL PR result. This is evidence of analysis, not a merge-blocking CodeQL rule.
+- Private vulnerability reporting is enabled.
+- The authenticated account's GitHub-generated noreply address was verified without publishing private profile or email-list data.
+
+## Settings requiring privileged re-verification
+
+The current GitHub App returns HTTP 403 for legacy branch protection, Actions allowed-actions/default-token settings, Dependabot alerts/security updates and CodeQL default-setup configuration. Repository metadata also omits `security_and_analysis`; secret scanning and push protection cannot be independently confirmed through this connection.
+
+Earlier hardening work recorded these settings as enabled. Preserve that historical record, but do not present it as a fresh verification. Keep the M0 exit issue open until required settings are checked with appropriately scoped access. Do not weaken controls or request secret values in chat.
 
 ## Workflow and supply-chain rules
 
-- Pin every external action to a complete immutable commit SHA with a human-readable version comment; use digest-pinned containers, not `latest`.
-- Set workflow permissions to `{}` and grant narrowly scoped job permissions. Use `persist-credentials: false` for checkout. Avoid `pull_request_target` and untrusted-code execution with secrets or write-capable tokens.
-- Never bypass the exact-head required checks. Verify post-merge exact-main CI.
-- Keep secrets outside Git; do not include user clipboard content in CI artifacts, logs, fixtures, or uploads.
-- Dependency security and license compliance must be assessed before adding packages.
-- Keep private vulnerability reporting available where supported; route sensitive reports privately instead of posting exploit details publicly.
+- Pin external actions to immutable full commit SHAs with version comments; pin containers by digest. Checkout is pinned to v7.0.1, uses Node 24 and disables credential persistence.
+- Workflow permissions default to `{}`; only the build job receives `contents: read`. Do not execute PR code with secrets or write-capable tokens, or add `pull_request_target` without a threat-model review.
+- Preserve required-check names and exact-head verification. Verify CI again on the resulting protected-main commit.
+- Build/test both the runner's current default toolchain and Xcode 26.0.1 (Swift 6.2), the declared minimum. A future runner-image removal must fail visibly and be addressed without silently dropping minimum-version coverage.
+- Review dependency usage, licenses, resolution and vulnerabilities before adding packages. There are no third-party Swift package dependencies.
+- Never include real clipboard contents, secrets, private identities or work addresses in fixtures, logs or artifacts.
+- Use explicit `StanleyLl0yd` / verified GitHub noreply author and committer fields when creating commits through Git data APIs, and verify the resulting metadata before updating a branch. Check squash-merge identity behavior separately; the available merge interfaces cannot explicitly set both identity names. Do not assume a private account profile is safe for automatic commit metadata.
 
-## Additional protections to stage deliberately
+## Evidence and artifact retention
 
-- **Release tags:** before first published version, add a no-bypass tag ruleset for `refs/tags/v*` blocking updates and deletion while allowing initial tag creation. Bind releases to successful protected-main history and prohibit overwriting assets.
-- **CodeQL gate:** add merge-blocking CodeQL code-scanning rules for medium-or-higher findings once PR-triggered Swift analysis is confirmed reliable. CodeQL setup success alone does not prove PR gating.
-- **Signed commits:** evaluate after verifying the full GitHub connector and local Git signing paths; do not introduce a setting that makes authorized single-maintainer development impossible.
-- **Releases:** require macOS `.app` and DMG signing/notarization validation, immutable artifacts, SHA-256 checksums and provenance/attestation where feasible. Keep signing material only in a protected release environment.
-- **Additional scanners:** add only when they catch distinct, material classes of risk with reliable and maintainable CI output.
+- M0 CI produces no uploaded build/test artifacts. Keep durable audit decisions and exact SHA/run links in versioned reports and the milestone exit issue.
+- Any future diagnostic/test artifact upload must set `retention-days: 7`, use synthetic data only, and exclude clipboard stores and signing material.
+- Keep essential release packages, checksums and provenance in GitHub Releases. Do not create routine duplicate CI packages or overwrite published release assets.
+- The account's log/artifact retention setting is not readable with this connection; no successful configuration change is claimed.
 
-See `AGENTS.md` for code, icon and milestone invariants and `docs/agent/AUDIT_REFACTOR.md` for the full mandatory audit procedure.
+## Additional protections and release prerequisites
+
+- Add a merge-blocking CodeQL code-scanning rule for medium-or-higher findings after verifying reliable PR analysis and an authorized administrative path. A successful scan alone is not enforcement.
+- Evaluate signed-commit requirements only after verifying compatibility with the connector and the sole-maintainer workflow.
+- Bind releases to successful protected-main history and immutable version tags. Require signed/notarized `.app` and DMG validation, checksums and provenance where feasible; keep signing material in a protected release environment.
+- Production publication needs explicit owner authorization. No signed release, approved canonical icon or real-hardware acceptance is claimed.
+
+See `AGENTS.md`, `docs/agent/AUDIT_REFACTOR.md` and M0 exit issue #2.
