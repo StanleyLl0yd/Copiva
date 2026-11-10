@@ -10,8 +10,10 @@ All functionality below is planned unless explicitly marked done.
 - [x] Bilingual README, license, contributing, security policy
 - [x] Protected default branch: PR-only, strict exact-head CI, linear/squash history
 - [x] Initial Dependabot alerts/updates, secret scanning/push protection and Swift CodeQL setup (historical; current settings verification remains in exit issue #2)
-- [ ] Run and validate the scaffold on an actual Mac
-- [ ] Complete M0 two-pass repository-wide exit audit and record evidence
+- [x] Run and validate the scaffold on an actual Mac (owner acceptance recorded 2026-11-10)
+- [x] Complete M0 two-pass repository-wide exit audit and record evidence
+
+M0 runtime acceptance is confirmed by the owner. The complete exit record is in `docs/agent/M0_EXIT_2026-11-10.md`; final protected-main verification and milestone closure are recorded in issue #2. Release versions are numeric only; future distribution targets Apple Silicon arm64.
 
 ## M1 — First usable clipboard history
 - [ ] Observe supported clipboard changes without recording app-generated writes

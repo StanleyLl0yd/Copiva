@@ -4,7 +4,7 @@
 
 [Русский](README.ru.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-> **Status: M0 / early development.** This repository contains a buildable menu-bar app scaffold, not a functional clipboard manager yet. The current release is 0.0.1.
+> **Status: M0 accepted / early development.** This repository contains a buildable menu-bar app scaffold, not a functional clipboard manager yet. The current release is 0.0.1.
 
 Copiva aims to make copying, finding, saving, and pasting feel effortless on macOS, with an independent, compact interface instead of relying on Spotlight.
 
@@ -35,8 +35,10 @@ swift test
 swift run Copiva
 ```
 
-The initial SwiftPM executable is a development scaffold. A signed `.app` and DMG packaging pipeline will follow in later milestones.
+The current `.app` is a development scaffold with an ad-hoc signature. Developer ID signing, Apple notarization and DMG packaging belong to later milestones.
 
 ## License
 
 [MIT](LICENSE). Copyright (c) 2026 StanleyLl0yd.
+
+Future app packages target Apple Silicon (arm64) only, as selected by the owner. The already published 0.0.1 package retains its verified universal binary.

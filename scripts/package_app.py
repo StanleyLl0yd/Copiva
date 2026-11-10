@@ -20,7 +20,7 @@ request = json.loads((ROOT / "release" / "REQUEST").read_text(encoding="utf-8"))
 if request.get("version") != VERSION or request.get("authorized_by") != "StanleyLl0yd":
     raise SystemExit("A matching owner-authorized release request is required")
 TAG = f"v{VERSION}"
-ARCHIVE = f"Copiva-{VERSION}-macos-universal.zip"
+ARCHIVE = f"Copiva-{VERSION}-macos-arm64.zip"
 
 
 def run(*args, capture=False):
@@ -50,13 +50,11 @@ if run("git", "rev-parse", "HEAD", capture=True).strip() != commit:
 
 xcode = run("xcodebuild", "-version", capture=True).strip()
 swift = run("xcrun", "swift", "--version", capture=True).strip()
-binaries = []
-for arch in ("arm64", "x86_64"):
-    run("xcrun", "swift", "build", "--configuration", "release", "--arch", arch,
-        "--product", "Copiva")
-    directory = run("xcrun", "swift", "build", "--configuration", "release",
-                    "--arch", arch, "--show-bin-path", capture=True).strip()
-    binaries.append(str(Path(directory) / "Copiva"))
+run("xcrun", "swift", "build", "--configuration", "release", "--arch", "arm64",
+    "--product", "Copiva")
+directory = run("xcrun", "swift", "build", "--configuration", "release",
+                "--arch", "arm64", "--show-bin-path", capture=True).strip()
+binary = Path(directory) / "Copiva"
 
 dist = ROOT / "dist"
 dist.mkdir(exist_ok=False)
@@ -66,12 +64,12 @@ resources = app / "Contents" / "Resources"
 macos.mkdir(parents=True)
 resources.mkdir()
 executable = macos / "Copiva"
-run("xcrun", "lipo", "-create", *binaries, "-output", str(executable))
+shutil.copyfile(binary, executable)
 executable.chmod(0o755)
 architectures = run("xcrun", "lipo", "-archs", str(executable),
                     capture=True).split()
-if sorted(architectures) != ["arm64", "x86_64"]:
-    raise SystemExit("Universal app must contain exactly arm64 and x86_64")
+if architectures != ["arm64"]:
+    raise SystemExit("Apple Silicon app must contain arm64 only")
 
 with (ROOT / "Config" / "Info.plist").open("rb") as stream:
     info = plistlib.load(stream)

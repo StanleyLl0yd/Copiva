@@ -1,5 +1,7 @@
 # Neighbor-repository review — 2026-11-10
 
+Historical comparison and authorization checkpoints. Current resolved settings, numeric release and owner acceptance are recorded in `../agent/M0_EXIT_2026-11-10.md` and issue #2.
+
 The owner requested comparison of existing repositories before resolving Copiva's merge/privacy and administrative-access blockers, and explicitly authorized a downloadable app for real-Mac testing.
 
 ## Evidence
