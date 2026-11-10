@@ -1,6 +1,11 @@
 import Foundation
 import SQLite3
 import XCTest
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 @testable import CopivaCore
 
 @MainActor
@@ -20,6 +25,57 @@ final class HistoryStoreTests: XCTestCase {
         defer { sqlite3_close_v2(database) }
         let result = sqlite3_exec(database, statement, nil, nil, nil)
         guard result == SQLITE_OK else { throw HistoryError.database(result) }
+    }
+
+
+    private func interruptWriter(in directory: URL, commit: Bool) async throws {
+        let child = Process()
+        let input = Pipe()
+        let signal = directory.appendingPathComponent("writer-ready")
+        child.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
+        child.arguments = [directory.appendingPathComponent("history.sqlite3").path]
+        child.standardInput = input
+        child.standardOutput = FileHandle.nullDevice
+        child.standardError = FileHandle.nullDevice
+        try child.run()
+        defer {
+            if child.isRunning { _ = kill(child.processIdentifier, SIGKILL) }
+            child.waitUntilExit()
+            try? input.fileHandleForWriting.close()
+        }
+        let script = """
+            .bail on
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous=FULL;
+            PRAGMA cache_size=1;
+            BEGIN IMMEDIATE;
+            INSERT INTO clips(text, copied_at) VALUES ('synthetic interrupted clip', 1234);
+            DELETE FROM clips WHERE id != last_insert_rowid();
+            \(commit ? "COMMIT;" : "")
+            .output "\(signal.path)"
+            .print READY
+            .output
+
+            """
+        try input.fileHandleForWriting.write(contentsOf: Data(script.utf8))
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(5))
+        var ready = false
+        while clock.now < deadline, child.isRunning {
+            if (try? String(contentsOf: signal, encoding: .utf8)) == "READY\n" {
+                ready = true
+                break
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        guard ready, child.isRunning else {
+            XCTFail("SQLite writer did not reach the crash checkpoint")
+            throw HistoryError.storageUnavailable
+        }
+        XCTAssertEqual(kill(child.processIdentifier, SIGKILL), 0)
+        child.waitUntilExit()
+        XCTAssertEqual(child.terminationReason, .uncaughtSignal)
+        XCTAssertEqual(child.terminationStatus, SIGKILL)
     }
 
     func testReopenPreservesUnicodeNullsDatesAndIdentity() async throws {
@@ -305,6 +361,8 @@ final class HistoryStoreTests: XCTestCase {
         }
         let unchanged = try await store.search()
         XCTAssertEqual(unchanged, [third, second])
+        let restoredSearch = try await store.search("retained")
+        XCTAssertEqual(restoredSearch, [third, second])
         try sql("DROP TRIGGER reject_clear", in: directory)
         try await store.clearOrdinaryHistory()
         let empty = try await store.search()
@@ -314,5 +372,40 @@ final class HistoryStoreTests: XCTestCase {
         let next = try await store.record("after clearing")
         XCTAssertGreaterThan(next.id, third.id)
         await store.close()
+    }
+
+    func testInterruptedUncommittedWriterRestoresPriorHistoryAndSearch() async throws {
+        let directory = location()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try HistoryStore(directory: directory)
+        let original = try await store.record("durable original clip")
+        await store.close()
+        try await interruptWriter(in: directory, commit: false)
+        let recovered = try HistoryStore(directory: directory)
+        let rows = try await recovered.search()
+        let originalMatches = try await recovered.search("durable")
+        let pendingMatches = try await recovered.search("interrupted")
+        XCTAssertEqual(rows, [original])
+        XCTAssertEqual(originalMatches, [original])
+        XCTAssertTrue(pendingMatches.isEmpty)
+        await recovered.close()
+    }
+
+    func testCommittedWriterSurvivesInterruptionBeforeClose() async throws {
+        let directory = location()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try HistoryStore(directory: directory)
+        let original = try await store.record("durable original clip")
+        await store.close()
+        try await interruptWriter(in: directory, commit: true)
+        let recovered = try HistoryStore(directory: directory)
+        let rows = try await recovered.search()
+        let originalMatches = try await recovered.search("durable")
+        let committedMatches = try await recovered.search("interrupted")
+        XCTAssertEqual(rows.map(\.text), ["synthetic interrupted clip"])
+        XCTAssertGreaterThan(rows.first?.id ?? 0, original.id)
+        XCTAssertEqual(committedMatches, rows)
+        XCTAssertTrue(originalMatches.isEmpty)
+        await recovered.close()
     }
 }
