@@ -85,6 +85,6 @@ Report verified facts with exact relevant commit/PR/check links. Distinguish pla
 
 ## Public README content
 
-- Keep both READMEs focused on the application: its purpose, useful workflows, current capabilities, planned experience and ways to contribute. Use an inviting, factual tone without advertising or commercial claims.
+- Keep both READMEs focused on the application: its purpose, useful workflows, current capabilities, planned experience and ways to contribute. Use an inviting, conversational and factual tone, with restrained humor where natural, without advertising or commercial claims. The owner's FootClubSim, CopyFix and SeaBattle READMEs are tone/layout references; adapt the presentation to Copiva's actual capabilities.
 - Include useful linked project badges. Keep current availability clear, but put build commands, audit findings, CI/check evidence, milestone acceptance and implementation progress reports in the relevant documentation, issues or release notes.
 - Maintain equivalent Russian and English content. Describe planned features as plans; badges and prose must not imply unimplemented functionality or unverified release guarantees.
