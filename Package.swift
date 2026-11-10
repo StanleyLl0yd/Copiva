@@ -8,7 +8,8 @@ let package = Package(
         .executable(name: "Copiva", targets: ["Copiva"])
     ],
     targets: [
-        .target(name: "CopivaCore", path: "Sources/CopivaCore"),
+        .target(name: "CopivaCore", path: "Sources/CopivaCore",
+                linkerSettings: [.linkedLibrary("sqlite3")]),
         .executableTarget(name: "Copiva", dependencies: ["CopivaCore"], path: "Sources/Copiva"),
         .testTarget(name: "CopivaCoreTests", dependencies: ["CopivaCore"], path: "Tests/CopivaCoreTests")
     ]
