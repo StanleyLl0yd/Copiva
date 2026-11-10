@@ -6,8 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -18,8 +17,12 @@ jobs:
     name: macOS 26 / Swift
     runs-on: macos-26
     timeout-minutes: 25
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Toolchain info
         run: |
           xcodebuild -version
@@ -28,3 +31,12 @@ jobs:
         run: swift build
       - name: Test
         run: swift test --parallel
+      - name: Build and test minimum supported toolchain
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+        run: |
+          xcodebuild -version
+          xcrun swift --version
+          xcrun swift package clean
+          xcrun swift build
+          xcrun swift test --parallel
