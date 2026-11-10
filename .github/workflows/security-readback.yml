@@ -1,0 +1,67 @@
+name: Read back security settings
+on:
+  push:
+    branches: [audit/security-settings-readback]
+permissions: {}
+jobs:
+  inspect:
+    if: github.repository == 'StanleyLl0yd/Copiva'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      security-events: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Inspect settings without exposing alert contents
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          repo = "StanleyLl0yd/Copiva"
+          paths = [
+              "", "/actions/permissions", "/actions/permissions/workflow",
+              "/actions/permissions/selected-actions", "/branches/main/protection",
+              "/vulnerability-alerts", "/automated-security-fixes",
+              "/private-vulnerability-reporting", "/code-scanning/default-setup",
+              "/code-scanning/alerts?state=open&per_page=100",
+              "/dependabot/alerts?state=open&per_page=100",
+              "/secret-scanning/alerts?state=open&per_page=100",
+              "/rulesets/26940387", "/rulesets/26948978",
+          ]
+          records = []
+          for path in paths:
+              result = subprocess.run(["gh", "api", f"repos/{repo}{path}"],
+                                      capture_output=True, text=True, timeout=30)
+              try:
+                  value = json.loads(result.stdout) if result.stdout else None
+              except ValueError:
+                  value = None
+              status = (200 if result.stdout else 204) if result.returncode == 0 else (
+                  int(value.get("status", 0)) if isinstance(value, dict) else 0)
+              record = {"path": path or "/repository", "http_status": status}
+              if result.returncode == 0 and isinstance(value, list):
+                  record["open_alerts_first_page"] = len(value)
+                  record["complete_count"] = len(value) < 100
+              elif result.returncode == 0 and isinstance(value, dict):
+                  if path == "":
+                      record["security_and_analysis"] = value.get("security_and_analysis", "not exposed")
+                  elif "rulesets/" in path:
+                      record["enforcement"] = value.get("enforcement")
+                      record["bypass_actor_count"] = len(value.get("bypass_actors", []))
+                      record["rule_types"] = [r["type"] for r in value.get("rules", [])]
+                  else:
+                      for key in ("enabled", "allowed_actions", "default_workflow_permissions",
+                                  "can_approve_pull_request_reviews", "github_owned_allowed",
+                                  "verified_allowed", "state", "languages"):
+                          if key in value:
+                              record[key] = value[key]
+              records.append(record)
+              print(json.dumps(record), flush=True)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("# GitHub Actions security readback\n\n")
+              summary.write("Only status, configuration flags and alert counts are retained. ")
+              summary.write("403/missing fields remain unverified; no setting is modified.\n\n")
+              summary.write("\n".join("    " + line for line in json.dumps(records, indent=2).splitlines()))
+          PY
