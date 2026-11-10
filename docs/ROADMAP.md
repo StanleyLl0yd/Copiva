@@ -9,7 +9,7 @@ All functionality below is planned unless explicitly marked done.
 - [x] Tests and macOS CI workflow
 - [x] Bilingual README, license, contributing, security policy
 - [x] Protected default branch: PR-only, strict exact-head CI, linear/squash history
-- [x] Dependabot alerts/updates, secret scanning/push protection, CodeQL Swift setup
+- [x] Initial Dependabot alerts/updates, secret scanning/push protection and Swift CodeQL setup (historical; current settings verification remains in exit issue #2)
 - [ ] Run and validate the scaffold on an actual Mac
 - [ ] Complete M0 two-pass repository-wide exit audit and record evidence
 
