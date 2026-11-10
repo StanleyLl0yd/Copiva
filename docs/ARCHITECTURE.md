@@ -16,7 +16,7 @@ CopivaCore now provides an actor-owned HistoryStore and immutable, Sendable Text
 - Errors expose typed state/numeric SQLite codes, never SQL messages, paths or payloads. Storage is local plaintext, not encrypted. Deletion is not a secure-erasure promise: FTS segments, WAL, filesystem snapshots and SSD behavior need separate consideration.
 - There are no pinned items in schema 1. Future pinning requires an explicit compatible migration and retention changes; an old reader must reject that newer schema instead of deleting pinned data.
 
-Regression tests use only synthetic contents and real temporary SQLite databases: reopen identity/Unicode/NUL preservation, search literals, retention/FTS consistency, forced transaction failure, future/foreign/corrupt-file and malformed-record preservation, permissions/symlinks, bounds, explicit deletion/clear and concurrent calls. Native CI is the source of executed results; do not infer real clipboard/UI acceptance from these backend tests.
+Regression tests use only synthetic contents and real temporary SQLite databases: reopen identity/Unicode/NUL preservation, search literals, retention/FTS consistency, forced transaction failure, future/foreign/corrupt-file and malformed-record preservation, permissions/symlinks, bounds, explicit deletion/clear, concurrent calls and abrupt SQLite-writer termination before/after commit. Crash fixtures use the platform SQLite CLI with a readiness checkpoint and SIGKILL, exercising actual WAL recovery without production test hooks. Native CI is the source of executed results; do not infer real clipboard/UI acceptance from these backend tests.
 
 ## Remaining product integration
 
