@@ -2,12 +2,16 @@
 
 All functionality below is planned unless explicitly marked done.
 
+**Milestone acceptance:** each milestone has a full repository-wide, two-pass audit, safe-refactoring, security and code-review exit gate, documented in `AGENTS.md` and `docs/agent/AUDIT_REFACTOR.md`. Do not mark a milestone accepted on CI alone.
+
 ## M0 — Repository and bootstrapping
 - [x] SwiftPM + SwiftUI menu-bar app skeleton
 - [x] Tests and macOS CI workflow
 - [x] Bilingual README, license, contributing, security policy
+- [x] Protected default branch: PR-only, strict exact-head CI, linear/squash history
+- [x] Dependabot alerts/updates, secret scanning/push protection, CodeQL Swift setup
 - [ ] Run and validate the scaffold on an actual Mac
-- [ ] Set up branch protection after a green CI run
+- [ ] Complete M0 two-pass repository-wide exit audit and record evidence
 
 ## M1 — First usable clipboard history
 - [ ] Observe supported clipboard changes without recording app-generated writes
@@ -33,6 +37,8 @@ All functionality below is planned unless explicitly marked done.
 - [ ] No sensitive clipboard payloads in logs
 
 ## M5 — First stable release
+- [ ] Owner-approved canonical app icon and verified raster resource pipeline
+- [ ] Protect immutable version tags, release provenance and signing environment
 - [ ] Build signed and notarized `.app` / DMG
 - [ ] Release verification, user documentation and installation test
 
