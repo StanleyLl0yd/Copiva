@@ -1,0 +1,35 @@
+# Swift / Xcode
+.build/
+.swiftpm/
+DerivedData/
+*.xcuserstate
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+
+# macOS
+.DS_Store
+.AppleDouble/
+
+# Builds and signing
+*.app/
+*.dmg
+*.pkg
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+dist/
+build/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Editors
+.vscode/
+.idea/
