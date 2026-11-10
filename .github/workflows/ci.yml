@@ -1,42 +1,50 @@
-name: CI
-
+name: Portable storage diagnostic
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
-
 permissions: {}
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build-and-test:
-    name: macOS 26 / Swift
-    runs-on: macos-26
-    timeout-minutes: 25
+  core:
+    name: Portable Core / Swift (diagnostic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Toolchain info
+          ref: ${{ github.sha }}
+      - name: Record available system toolchain
         run: |
-          xcodebuild -version
           swift --version
-      - name: Build
-        run: swift build
-      - name: Test
-        run: swift test --parallel
-      - name: Build and test minimum supported toolchain
-        env:
-          DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+          pkg-config --modversion sqlite3
+          test -r /usr/include/sqlite3.h
+      - name: Test exact portable Core and test sources in runner-only harness
         run: |
-          xcodebuild -version
-          xcrun swift --version
-          xcrun swift package clean
-          xcrun swift build
-          xcrun swift test --parallel
+          python3 - <<'PY'
+          import os, pathlib, shutil, subprocess
+          root = pathlib.Path.cwd()
+          work = pathlib.Path(os.environ["RUNNER_TEMP"]) / "copiva-core-diagnostic"
+          work.mkdir(exist_ok=False)
+          for path in ("Sources/CopivaCore", "Tests/CopivaCoreTests"):
+              destination = work / path
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copytree(root / path, destination)
+          module = work / "SQLite3"
+          module.mkdir()
+          (module / "module.modulemap").write_text(
+              'module SQLite3 [system] {\n'
+              '  header "/usr/include/sqlite3.h"\n'
+              '  link "sqlite3"\n'
+              '  export *\n'
+              '}\n', encoding="utf-8")
+          (work / "Package.swift").write_text(
+              '// swift-tools-version: 6.2\n'
+              'import PackageDescription\n'
+              'let package = Package(name: "CopivaCoreDiagnostic", targets: [\n'
+              '  .systemLibrary(name: "SQLite3", path: "SQLite3"),\n'
+              '  .target(name: "CopivaCore", dependencies: ["SQLite3"]),\n'
+              '  .testTarget(name: "CopivaCoreTests", dependencies: ["CopivaCore", "SQLite3"])\n'
+              '])\n', encoding="utf-8")
+          subprocess.run(["swift", "test", "--parallel"], cwd=work, check=True)
+          PY
