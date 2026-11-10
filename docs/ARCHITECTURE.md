@@ -10,13 +10,13 @@ CopivaCore now provides an actor-owned HistoryStore and immutable, Sendable Text
 
 - The caller supplies an app-owned directory dedicated to history. It is mode 0700; history.sqlite3 is mode 0600. Reject directory/database symlinks and use SQLite's no-follow open flag.
 - Schema 1 uses application_id 0x43505641, append-ordered IDs, text and copy timestamps, plus an external-content FTS5 index with insertion/deletion triggers. Future schema versions, foreign databases and malformed storage fail without reset/replacement.
-- WAL and FULL synchronous commits provide SQLite's transaction/recovery guarantees. Recording and ordinary-history pruning are one transaction; failed cleanup rolls back the insertion. Failed limit changes preserve the previous limit. An unsuccessful rollback closes the connection.
+- WAL and FULL synchronous commits provide SQLite's transaction/recovery guarantees. Recording and ordinary-history pruning are one transaction; explicit remove/clear operations are transactional too; failed cleanup rolls back the insertion. Failed limit changes preserve the previous limit. An unsuccessful rollback closes the connection.
 - Payloads are at most 256 KiB of UTF-8. Configurable ordinary-history count is 1–10,000 (default 500), enforced on successful writes/explicit limit changes. Opening preserves existing rows. Results are capped at 200; queries at 512 UTF-8 bytes and 32 words.
 - Search matches Unicode word prefixes with accent folding. User input is tokenized into literal words and bound separately from SQL; FTS operators are not accepted as syntax. Punctuation-only queries return no matches.
 - Errors expose typed state/numeric SQLite codes, never SQL messages, paths or payloads. Storage is local plaintext, not encrypted. Deletion is not a secure-erasure promise: FTS segments, WAL, filesystem snapshots and SSD behavior need separate consideration.
 - There are no pinned items in schema 1. Future pinning requires an explicit compatible migration and retention changes; an old reader must reject that newer schema instead of deleting pinned data.
 
-Regression tests use only synthetic contents and real temporary SQLite databases: reopen identity/Unicode/NUL preservation, search literals, retention/FTS consistency, forced transaction failure, future/foreign/corrupt-file preservation, permissions/symlinks, bounds and concurrent calls. Native CI is the source of executed results; do not infer real clipboard/UI acceptance from these backend tests.
+Regression tests use only synthetic contents and real temporary SQLite databases: reopen identity/Unicode/NUL preservation, search literals, retention/FTS consistency, forced transaction failure, future/foreign/corrupt-file and malformed-record preservation, permissions/symlinks, bounds, explicit deletion/clear and concurrent calls. Native CI is the source of executed results; do not infer real clipboard/UI acceptance from these backend tests.
 
 ## Remaining product integration
 

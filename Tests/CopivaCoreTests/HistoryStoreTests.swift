@@ -196,6 +196,20 @@ final class HistoryStoreTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? HistoryError, .invalidQuery)
         }
+        do {
+            _ = try await store.record("invalid date", copiedAt: Date(timeIntervalSince1970: .nan))
+            XCTFail("Non-finite timestamps must be rejected")
+        } catch {
+            XCTAssertEqual(error as? HistoryError, .invalidTimestamp)
+        }
+        for invalidLimit in [0, Int.max] {
+            do {
+                _ = try await store.search(limit: invalidLimit)
+                XCTFail("Invalid result limits must not reach SQLite")
+            } catch {
+                XCTAssertEqual(error as? HistoryError, .invalidLimit)
+            }
+        }
         let rows = try await store.search()
         XCTAssertEqual(rows, [clip])
         await store.close()
@@ -222,5 +236,78 @@ final class HistoryStoreTests: XCTestCase {
         } catch {
             XCTAssertEqual(error as? HistoryError, .closed)
         }
+    }
+
+    func testInvalidStoredTimestampFailsWithoutRewritingHistory() async throws {
+        let directory = location()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try HistoryStore(directory: directory)
+        _ = try await store.record("preserve this record")
+        await store.close()
+        try sql("UPDATE clips SET copied_at = 'not a timestamp'", in: directory)
+        let path = directory.appendingPathComponent("history.sqlite3")
+        let before = try Data(contentsOf: path)
+        let reopened = try HistoryStore(directory: directory)
+        do {
+            _ = try await reopened.search()
+            XCTFail("Invalid storage must not be silently coerced to a different date")
+        } catch {
+            XCTAssertEqual(error as? HistoryError, .unrecognizedDatabase)
+        }
+        await reopened.close()
+        XCTAssertEqual(try Data(contentsOf: path), before)
+    }
+
+    func testDirectorySymlinkDoesNotChangeItsTarget() throws {
+        let directory = location()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let real = directory.appendingPathComponent("real")
+        let alias = directory.appendingPathComponent("alias")
+        try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], atPath: real.path)
+        let target = real.appendingPathComponent("history.sqlite3")
+        let bytes = Data("synthetic untouched file".utf8)
+        try bytes.write(to: target)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: real)
+        XCTAssertThrowsError(try HistoryStore(directory: alias))
+        XCTAssertEqual(try Data(contentsOf: target), bytes)
+        let attributes = try FileManager.default.attributesOfItem(atPath: real.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o755)
+    }
+
+    func testExplicitDeletionAndClearKeepIndexAndIdentifiersConsistent() async throws {
+        let directory = location()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try HistoryStore(directory: directory)
+        let first = try await store.record("erasable")
+        let second = try await store.record("retained")
+        let removed = try await store.remove(id: first.id)
+        let removedTwice = try await store.remove(id: first.id)
+        let matches = try await store.search("erasable")
+        XCTAssertTrue(removed)
+        XCTAssertFalse(removedTwice)
+        XCTAssertTrue(matches.isEmpty)
+        try sql("""
+            CREATE TRIGGER reject_clear BEFORE DELETE ON clips BEGIN
+                SELECT RAISE(FAIL, 'synthetic clear failure');
+            END;
+            """, in: directory)
+        do {
+            try await store.clearOrdinaryHistory()
+            XCTFail("Failed clear must roll back")
+        } catch {
+            XCTAssertEqual(error as? HistoryError, .database(SQLITE_CONSTRAINT))
+        }
+        let unchanged = try await store.search()
+        XCTAssertEqual(unchanged, [second])
+        try sql("DROP TRIGGER reject_clear", in: directory)
+        try await store.clearOrdinaryHistory()
+        let empty = try await store.search()
+        let oldMatches = try await store.search("retained")
+        XCTAssertTrue(empty.isEmpty)
+        XCTAssertTrue(oldMatches.isEmpty)
+        let next = try await store.record("after clearing")
+        XCTAssertGreaterThan(next.id, second.id)
+        await store.close()
     }
 }

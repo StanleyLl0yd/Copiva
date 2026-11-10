@@ -39,6 +39,10 @@ public actor HistoryStore {
         let manager = FileManager.default
         let url = directory.appendingPathComponent("history.sqlite3")
         do {
+            if let existing = try? manager.attributesOfItem(atPath: directory.path),
+               existing[.type] as? FileAttributeType != .typeDirectory {
+                throw HistoryError.invalidLocation
+            }
             try manager.createDirectory(at: directory, withIntermediateDirectories: true,
                                         attributes: [.posixPermissions: 0o700])
             let attributes = try manager.attributesOfItem(atPath: directory.path)
@@ -122,6 +126,12 @@ public actor HistoryStore {
                 try HistoryConnection.check(result, expecting: SQLITE_ROW)
                 let size = Int(sqlite3_column_bytes(statement, 1))
                 let timestamp = sqlite3_column_double(statement, 2)
+                let timestampType = sqlite3_column_type(statement, 2)
+                guard sqlite3_column_type(statement, 0) == SQLITE_INTEGER,
+                      sqlite3_column_int64(statement, 0) > 0,
+                      timestampType == SQLITE_FLOAT || timestampType == SQLITE_INTEGER else {
+                    throw HistoryError.unrecognizedDatabase
+                }
                 guard sqlite3_column_type(statement, 1) == SQLITE_TEXT,
                       size > 0, size <= Self.maximumTextBytes,
                       timestamp.isFinite,
@@ -144,6 +154,25 @@ public actor HistoryStore {
         }
         try connection.transaction { try connection.prune(to: limit) }
         historyLimit = limit
+    }
+
+    @discardableResult
+    public func remove(id: Int64) throws -> Bool {
+        try connection.transaction {
+            try connection.statement("DELETE FROM clips WHERE id = ?") { statement, database in
+                try HistoryConnection.check(sqlite3_bind_int64(statement, 1, id))
+                try HistoryConnection.check(sqlite3_step(statement), expecting: SQLITE_DONE)
+                return sqlite3_changes(database) > 0
+            }
+        }
+    }
+
+    public func clearOrdinaryHistory() throws {
+        try connection.transaction {
+            try connection.statement("DELETE FROM clips") { statement, _ in
+                try HistoryConnection.check(sqlite3_step(statement), expecting: SQLITE_DONE)
+            }
+        }
     }
 
     public func close() { connection.close() }
