@@ -4,7 +4,7 @@
 
 [Русский](README.ru.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-> **Status: M0 / early development.** This repository contains a buildable menu-bar app scaffold, not a functional clipboard manager yet. No stable release is available.
+> **Status: M0 / early development.** This repository contains a buildable menu-bar app scaffold, not a functional clipboard manager yet. The current release is 0.0.1.
 
 Copiva aims to make copying, finding, saving, and pasting feel effortless on macOS, with an independent, compact interface instead of relying on Spotlight.
 
@@ -20,9 +20,9 @@ Copiva aims to make copying, finding, saving, and pasting feel effortless on mac
 
 **These are requirements, not claims about the current build.**
 
-## M0 test application
+## 0.0.1
 
-[Download the M0 acceptance build](https://github.com/StanleyLl0yd/Copiva/releases/tag/v0.0.1-m0.1) for macOS 26+, Apple Silicon and Intel. It contains the existing menu-bar scaffold for launch/menu/Quit testing; clipboard history is not implemented. The app is ad-hoc signed without Developer ID signing or Apple notarization. See the release notes for installation and the issue #2 acceptance checklist.
+[Download 0.0.1](https://github.com/StanleyLl0yd/Copiva/releases/tag/v0.0.1) for macOS 26+, Apple Silicon and Intel. It contains the existing menu-bar scaffold for launch/menu/Quit testing; clipboard history is not implemented. The app is ad-hoc signed without Developer ID signing or Apple notarization. See the release notes for installation and the issue #2 acceptance checklist.
 
 ## Development
 

@@ -1,0 +1,242 @@
+name: Publish numeric release
+on:
+  push:
+    branches: [main]
+    paths: [release/VERSION, release/REQUEST]
+  pull_request:
+    paths:
+      - release/**
+      - Config/Info.plist
+      - scripts/package_app.py
+      - .github/workflows/release.yml
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: numeric-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    name: Verify universal release application
+    if: github.repository == 'StanleyLl0yd/Copiva'
+    runs-on: macos-26-intel
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
+    outputs:
+      artifact_name: ${{ steps.package.outputs.artifact_name }}
+      version: ${{ steps.package.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Test the minimum supported toolchain
+        run: xcrun swift test --parallel
+      - name: Package and verify numeric app and ZIP
+        id: package
+        run: python3 scripts/package_app.py
+      - name: Retain release evidence for seven days
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          path: |
+            dist/Copiva-*.zip
+            dist/BUILD-INFO.json
+            dist/SHA256SUMS
+            dist/RELEASE_NOTES.md
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+          overwrite: false
+  publish:
+    name: Publish verified numeric GitHub Release
+    needs: build
+    if: github.repository == 'StanleyLl0yd/Copiva' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      security-events: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
+      RELEASE_VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Require exact-main CI and CodeQL policy
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess, time, urllib.parse
+          repo, sha = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"]
+          if repo != "StanleyLl0yd/Copiva" or not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit("Unexpected release source")
+          if os.environ["GITHUB_REF"] != "refs/heads/main":
+              raise SystemExit("Publication requires protected main")
+          def api(path, pages=False):
+              args = ["gh", "api", path] + (["--paginate", "--slurp"] if pages else [])
+              result = subprocess.run(args, check=True, capture_output=True, text=True, timeout=30)
+              return json.loads(result.stdout)
+          required = ("macOS 26 / Swift", "Analyze (swift)")
+          deadline, previous = time.monotonic() + 1800, None
+          while time.monotonic() < deadline:
+              response = api(f"repos/{repo}/commits/{sha}/check-runs?per_page=100")
+              if response["total_count"] > 100:
+                  raise SystemExit("Unexpected check volume; inspect pagination")
+              latest = {}
+              for check in sorted(response["check_runs"], key=lambda c: c["id"], reverse=True):
+                  if check["head_sha"] == sha and check["app"]["id"] == 15368:
+                      latest.setdefault(check["name"], check)
+              status = {name: latest.get(name, {}).get("conclusion")
+                        or latest.get(name, {}).get("status", "missing") for name in required}
+              if status != previous:
+                  print(json.dumps({"exact_main_checks": status}), flush=True)
+                  previous = status
+              if any(v in ("failure", "cancelled", "timed_out", "action_required") for v in status.values()):
+                  raise SystemExit("An exact-main gate did not pass")
+              if all(v == "success" for v in status.values()):
+                  break
+              time.sleep(20)
+          else:
+              raise SystemExit("Timed out waiting for exact-main CI/CodeQL")
+          query = urllib.parse.urlencode({"state": "open", "ref": "refs/heads/main", "per_page": 100})
+          pages = api(f"repos/{repo}/code-scanning/alerts?{query}", pages=True)
+          alerts = [a for page in pages for a in page]
+          blocking = [a for a in alerts if a["rule"].get("security_severity_level")
+                      in ("medium", "high", "critical") or a["rule"].get("severity") == "error"]
+          print(json.dumps({"open_codeql_alerts": len(alerts), "blocking_alerts": len(blocking)}))
+          if blocking:
+              raise SystemExit("Medium-or-higher/error findings block publication")
+          commit = api(f"repos/{repo}/git/commits/{sha}")
+          profile = api("users/StanleyLl0yd")
+          if (commit["author"]["name"] != (profile.get("name") or profile["login"])
+                  or commit["author"]["email"] != "131160519+StanleyLl0yd@users.noreply.github.com"
+                  or commit["committer"]["name"] != "GitHub"
+                  or commit["committer"]["email"] != "noreply@github.com"
+                  or commit["verification"]["verified"] is not True):
+              raise SystemExit("Protected-main commit identity is not verified")
+          if api(f"repos/{repo}/branches/main")["commit"]["sha"] != sha:
+              raise SystemExit("Main moved during verification; review the current release source")
+          print("Exact-main gates, alert policy and authorized Git identities verified")
+          PY
+      - name: Publish and verify numeric release
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["GITHUB_SHA"]
+          version = os.environ["RELEASE_VERSION"]
+          if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
+              raise SystemExit("Release version must be numeric X.Y.Z")
+          tag = f"v{version}"
+          archive = f"Copiva-{version}-macos-universal.zip"
+          if repo != "StanleyLl0yd/Copiva" or not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit("Unexpected release source")
+          artifact = os.environ["ARTIFACT_NAME"]
+          if not re.fullmatch(r"copiva-" + re.escape(version) + "-" + sha + r"-[0-9]+", artifact):
+              raise SystemExit("Unexpected artifact identity")
+          def run(*args, **kwargs):
+              return subprocess.run(args, check=True, timeout=120, **kwargs)
+          def api(path, payload=None, missing=False):
+              args = ["gh", "api", path]
+              if payload is not None:
+                  args += ["--method", "POST", "--input", "-"]
+              result = subprocess.run(args, input=json.dumps(payload) if payload else None,
+                                      capture_output=True, text=True, timeout=30)
+              data = json.loads(result.stdout)
+              if result.returncode:
+                  if missing and str(data.get("status")) == "404":
+                      return None
+                  raise SystemExit(f"GitHub API failed: {data.get('message', 'unknown error')}")
+              return data
+          destination = Path(os.environ["RUNNER_TEMP"]) / "copiva-release-publish"
+          destination.mkdir(exist_ok=False)
+          run("gh", "run", "download", os.environ["GITHUB_RUN_ID"], "--repo", repo,
+              "--name", artifact, "--dir", str(destination))
+          expected_files = {archive, "BUILD-INFO.json", "SHA256SUMS", "RELEASE_NOTES.md"}
+          if {p.name for p in destination.iterdir()} != expected_files:
+              raise SystemExit("Unexpected artifact files")
+          if any(not p.is_file() or p.is_symlink() for p in destination.iterdir()):
+              raise SystemExit("Artifact must contain regular files only")
+          hashes = {}
+          for line in (destination / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+              digest, name = line.split("  ", 1)
+              if name not in {archive, "BUILD-INFO.json"} or name in hashes:
+                  raise SystemExit("Unexpected checksum entry")
+              if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                  raise SystemExit("Malformed SHA-256")
+              with (destination / name).open("rb") as stream:
+                  actual = hashlib.file_digest(stream, "sha256").hexdigest()
+              if actual != digest:
+                  raise SystemExit("Artifact checksum mismatch")
+              hashes[name] = digest
+          if set(hashes) != {archive, "BUILD-INFO.json"}:
+              raise SystemExit("Missing checksum entry")
+          metadata = json.loads((destination / "BUILD-INFO.json").read_text(encoding="utf-8"))
+          if (metadata["source_commit"] != sha or metadata["release_tag"] != tag
+                  or metadata.get("version") != version or metadata["source_ref"] != "refs/heads/main"
+                  or metadata["source_repository"] != repo
+                  or metadata["architectures"] != ["arm64", "x86_64"]
+                  or metadata["code_signature"] != "ad-hoc"
+                  or metadata["apple_notarized"] is not False
+                  or metadata["archive_sha256"] != hashes[archive]):
+              raise SystemExit("Build metadata does not match the authorized test release")
+          if api(f"repos/{repo}/releases/tags/{tag}", missing=True) is not None:
+              raise SystemExit("Release already exists; overwriting is forbidden")
+          refs = api(f"repos/{repo}/git/matching-refs/tags/{tag}")
+          exact = [r for r in refs if r["ref"] == f"refs/tags/{tag}"]
+          if exact and exact[0]["object"]["sha"] != sha:
+              raise SystemExit("Immutable tag points to another commit")
+          if not exact:
+              api(f"repos/{repo}/git/refs", {"ref": f"refs/tags/{tag}", "sha": sha})
+          release = api(f"repos/{repo}/releases", {
+              "tag_name": tag, "target_commitish": sha,
+              "name": version,
+              "body": (destination / "RELEASE_NOTES.md").read_text(encoding="utf-8"),
+              "draft": True, "prerelease": False, "make_latest": "true",
+          })
+          assets = [archive, "BUILD-INFO.json", "SHA256SUMS"]
+          run("gh", "release", "upload", tag, "--repo", repo,
+              *(str(destination / name) for name in assets))
+          uploaded = api(f"repos/{repo}/releases/{release['id']}/assets")
+          if {a["name"] for a in uploaded} != set(assets):
+              raise SystemExit("Draft release assets differ from the verified build")
+          for asset in uploaded:
+              result = run("gh", "api", f"repos/{repo}/releases/assets/{asset['id']}",
+                           "-H", "Accept: application/octet-stream", stdout=subprocess.PIPE)
+              if result.stdout != (destination / asset["name"]).read_bytes():
+                  raise SystemExit("Downloaded draft asset differs from the build")
+          payload = json.dumps({"draft": False, "prerelease": False, "make_latest": "true"})
+          run("gh", "api", f"repos/{repo}/releases/{release['id']}", "--method", "PATCH",
+              "--input", "-", input=payload, text=True, stdout=subprocess.DEVNULL)
+          public = api(f"repos/{repo}/releases/tags/{tag}")
+          if (public["draft"] or public["prerelease"] or public["tag_name"] != tag
+                  or public["name"] != version):
+              raise SystemExit("Release publication state is incorrect")
+          if {a["name"] for a in public["assets"]} != set(assets):
+              raise SystemExit("Published release assets differ from the verified draft")
+          verify = destination / "public-download"
+          verify.mkdir()
+          for asset in public["assets"]:
+              url = asset["browser_download_url"]
+              if not url.startswith(f"https://github.com/{repo}/releases/download/{tag}/"):
+                  raise SystemExit("Unexpected public download URL")
+              target = verify / asset["name"]
+              run("curl", "--fail", "--location", "--retry", "5", "--retry-all-errors",
+                  "--retry-delay", "2", "--silent", "--show-error", "--output", str(target), url)
+              if target.read_bytes() != (destination / asset["name"]).read_bytes():
+                  raise SystemExit("Public release download differs from the build")
+          print(public["html_url"])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"Published and verified numeric release: {public['html_url']}\n")
+          
+          legacy = api(f"repos/{repo}/releases/tags/v0.0.1-m0.1", missing=True)
+          if legacy is not None and legacy["id"] != public["id"] and not legacy["draft"]:
+              archived = json.dumps({"draft": True, "name": "0.0.1"})
+              run("gh", "api", f"repos/{repo}/releases/{legacy['id']}", "--method", "PATCH",
+                  "--input", "-", input=archived, text=True, stdout=subprocess.DEVNULL)
+              print("Previous qualified publication archived as a draft; tag/assets preserved")
+          PY

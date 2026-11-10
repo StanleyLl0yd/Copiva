@@ -63,3 +63,11 @@ These instructions apply to the entire repository and to every coding, security,
 ## Status and reporting
 
 Report verified facts with exact relevant commit/PR/check links. Distinguish planned, implemented, tested, deployed and user-accepted states. Continue from the existing ROADMAP or open findings when asked to proceed; avoid repeating already completed work. Do not disclose sensitive clipboard data or personal/work identity in reports.
+
+## Numeric release versions
+
+- The owner requires numeric release versions and GitHub release names: `X.Y.Z` only, for example `0.0.1`. No alpha/beta/rc, milestone suffixes or other qualifiers. Publish ordinary GitHub Releases with `prerelease: false`.
+- Version tags use the existing protected `vX.Y.Z` namespace; the version itself remains numeric. Artifact version components must also be numeric.
+- Record the version in `release/VERSION`, require a matching owner-authorized `release/REQUEST`, and verify the app bundle version before packaging. Publish only from successfully verified protected main.
+- Numeric naming does not imply user acceptance, Developer ID signing, notarization or production readiness. Describe the actual implemented features and signing status accurately.
+- Never move/delete protected historical tags or overwrite published assets. Supersede an earlier publication with a new authorized numeric release; preserve essential historical evidence in GitHub.
