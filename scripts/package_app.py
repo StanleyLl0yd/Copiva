@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the owner-requested M0 acceptance app on a GitHub macOS runner."""
+"""Package a numeric Copiva release on a GitHub macOS runner."""
 import hashlib
 import json
 import os
@@ -13,8 +13,14 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TAG = "v0.0.1-m0.1"
-ARCHIVE = f"Copiva-{TAG}-macos-universal.zip"
+VERSION = (ROOT / "release" / "VERSION").read_text(encoding="utf-8").strip()
+if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", VERSION):
+    raise SystemExit("Release versions must contain only numeric X.Y.Z components")
+request = json.loads((ROOT / "release" / "REQUEST").read_text(encoding="utf-8"))
+if request.get("version") != VERSION or request.get("authorized_by") != "StanleyLl0yd":
+    raise SystemExit("A matching owner-authorized release request is required")
+TAG = f"v{VERSION}"
+ARCHIVE = f"Copiva-{VERSION}-macos-universal.zip"
 
 
 def run(*args, capture=False):
@@ -70,10 +76,10 @@ if sorted(architectures) != ["arm64", "x86_64"]:
 with (ROOT / "Config" / "Info.plist").open("rb") as stream:
     info = plistlib.load(stream)
 if (info["CFBundleIdentifier"] != "io.github.StanleyLl0yd.Copiva"
-        or info["CFBundleShortVersionString"] != "0.0.1"
+        or info["CFBundleShortVersionString"] != VERSION
         or info["LSMinimumSystemVersion"] != "26.0"
         or info["LSUIElement"] is not True):
-    raise SystemExit("Unexpected M0 bundle identity or platform requirements")
+    raise SystemExit("Unexpected bundle identity or platform requirements")
 info["CopivaSourceRevision"] = commit
 info["CopivaReleaseTag"] = TAG
 with (app / "Contents" / "Info.plist").open("wb") as stream:
@@ -102,7 +108,7 @@ run_url = (
     f"{os.environ['GITHUB_RUN_ID']}"
 )
 metadata = {
-    "schema_version": 1, "release_tag": TAG,
+    "schema_version": 1, "version": VERSION, "release_tag": TAG,
     "source_repository": "StanleyLl0yd/Copiva", "source_commit": commit,
     "source_ref": os.environ["GITHUB_REF"], "workflow_run": run_url,
     "architectures": sorted(architectures), "minimum_macos": "26.0",
@@ -116,12 +122,12 @@ metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
     "".join(f"{sha256(path)}  {path.name}\n"
             for path in (archive, metadata_path)), encoding="utf-8",
 )
-notes = (ROOT / "docs" / "releases" / f"{TAG}.md").read_text(encoding="utf-8")
+notes = (ROOT / "docs" / "releases" / f"{VERSION}.md").read_text(encoding="utf-8")
 (dist / "RELEASE_NOTES.md").write_text(
     notes + f"\nSource commit: {commit}.\nBuild evidence: {run_url}.\n",
     encoding="utf-8",
 )
-artifact_name = f"copiva-m0-{commit}-{os.environ['GITHUB_RUN_ATTEMPT']}"
+artifact_name = f"copiva-{VERSION}-{commit}-{os.environ['GITHUB_RUN_ATTEMPT']}"
 with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-    output.write(f"artifact_name={artifact_name}\n")
+    output.write(f"artifact_name={artifact_name}\nversion={VERSION}\n")
 print(f"Verified {ARCHIVE}: {metadata['archive_sha256']}")
