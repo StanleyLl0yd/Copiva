@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build-and-test:
     name: macOS 26 / Swift
-    runs-on: macos-26
+    runs-on: macos-latest
     timeout-minutes: 25
     permissions:
       contents: read
@@ -23,6 +23,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Verify macOS 26 on the current runner alias
+        run: |
+          python3 - <<'PY'
+          import platform
+          version = platform.mac_ver()[0]
+          if version.split(".")[0] != "26":
+              raise SystemExit(f"Expected macOS 26, got {version}")
+          print(f"Verified macOS {version}")
+          PY
       - name: Toolchain info
         run: |
           xcodebuild -version
