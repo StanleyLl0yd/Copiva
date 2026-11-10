@@ -1,44 +1,51 @@
 # Copiva
 
-**A fast, native clipboard history manager for macOS.**
+**Find your way back to what you copied.**
 
-[Русский](README.ru.md) · [Roadmap](docs/ROADMAP.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+[![License: MIT](https://img.shields.io/github/license/StanleyLl0yd/Copiva)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/StanleyLl0yd/Copiva)](https://github.com/StanleyLl0yd/Copiva/releases/latest)
+[![CI](https://github.com/StanleyLl0yd/Copiva/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/StanleyLl0yd/Copiva/actions/workflows/ci.yml)
+[![macOS 26+](https://img.shields.io/badge/macOS-26%2B-000000?logo=apple)](https://github.com/StanleyLl0yd/Copiva/releases/latest)
+[![Swift 6.2+](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Package.swift)
 
-> **Status: M0 accepted / early development.** This repository contains a buildable menu-bar app scaffold, not a functional clipboard manager yet. The current release is 0.0.1.
+[Русский](README.ru.md) · [Download](https://github.com/StanleyLl0yd/Copiva/releases/latest) · [Roadmap](docs/ROADMAP.md) · [Contribute](CONTRIBUTING.md)
 
-Copiva aims to make copying, finding, saving, and pasting feel effortless on macOS, with an independent, compact interface instead of relying on Spotlight.
+A link, a code snippet, a sentence you wanted to keep — one more copy, and the previous item is gone from the clipboard. Copiva is a native clipboard history project for macOS, built around making those small pieces easy to find and use again.
 
-## Planned capabilities
+The idea is simple: open a compact picker, type a few words, choose an item and keep working. Swift, SwiftUI and AppKit provide the foundation; keyboard navigation and a local-first approach guide the design.
 
-- Configurable global shortcut and a compact picker near the insertion point, with safe positioning fallback.
-- Automatic clipboard history and instant, keyboard-driven search.
-- Pin/unpin entries; pinned clips survive restarts and are never auto-deleted.
-- Paste with original formatting **or** as plain text, selected from the picker.
-- Preserve supported clipboard representations, including rich text and images.
-- Configurable retention of ordinary history, independent of pinned items.
-- Local-first data processing and privacy controls for sensitive applications.
+## The experience we're building
 
-**These are requirements, not claims about the current build.**
+These capabilities are planned:
 
-## 0.0.1
+- **Recall earlier copies.** Search your history from a compact picker with a configurable global shortcut.
+- **Keep useful pieces close.** Pin frequently used items and retain them across restarts and ordinary history cleanup.
+- **Choose how to paste.** Reuse supported original formatting or insert plain text.
+- **Stay near your work.** Bring up the picker near the insertion point, with safe positioning fallbacks.
+- **Keep control of your data.** Local history, configurable retention and privacy controls for sensitive applications, without mandatory cloud services or analytics.
 
-[Download 0.0.1](https://github.com/StanleyLl0yd/Copiva/releases/tag/v0.0.1) for macOS 26+, Apple Silicon and Intel. It contains the existing menu-bar scaffold for launch/menu/Quit testing; clipboard history is not implemented. The app is ad-hoc signed without Developer ID signing or Apple notarization. See the release notes for installation and the issue #2 acceptance checklist.
+## Try Copiva
 
-## Development
+[Get the latest release →](https://github.com/StanleyLl0yd/Copiva/releases/latest)
 
-- macOS 26+ and Xcode 26+ (Swift 6.2+).
-- Swift Package Manager starter project using SwiftUI and AppKit.
+Copiva is in early development. The current release provides the menu-bar app foundation: launch, open the menu and quit. Clipboard history, search and insertion are planned.
 
-```sh
-swift build
-swift test
-swift run Copiva
-```
+macOS 26 or later is required. Development targets Apple Silicon. See the [release notes](https://github.com/StanleyLl0yd/Copiva/releases/latest) for installation, package compatibility and signing details.
 
-The current `.app` is a development scaffold with an ad-hoc signature. Developer ID signing, Apple notarization and DMG packaging belong to later milestones.
+## Help shape it
 
-## License
+A clipboard tool lives in the small details of everyday work. Useful contributions include:
 
-[MIT](LICENSE). Copyright (c) 2026 StanleyLl0yd.
+- Describing a workflow you'd like Copiva to support in an [issue](https://github.com/StanleyLl0yd/Copiva/issues).
+- Discussing keyboard interaction, accessibility, privacy or Russian and English wording.
+- Contributing Swift code, tests or documentation through a focused pull request.
 
-Future app packages target Apple Silicon (arm64) only, as selected by the owner. The already published 0.0.1 package retains its verified universal binary.
+Start with the [contribution guide](CONTRIBUTING.md) and [roadmap](docs/ROADMAP.md). Please use synthetic examples in reports; clipboard contents can be sensitive.
+
+If you'd like to follow the project, a star makes it easy to find again and helps others discover it.
+
+## Open source
+
+Copiva is available under the [MIT license](LICENSE). You can study it, change it and contribute to its direction.
+
+[Architecture](docs/ARCHITECTURE.md) · [Security policy](SECURITY.md)
