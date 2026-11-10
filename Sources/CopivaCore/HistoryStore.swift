@@ -76,7 +76,8 @@ public actor HistoryStore {
         guard !text.isEmpty, text.utf8.count <= Self.maximumTextBytes else {
             throw HistoryError.invalidText
         }
-        guard copiedAt.timeIntervalSince1970.isFinite else {
+        let timestamp = copiedAt.timeIntervalSince1970
+        guard timestamp.isFinite else {
             throw HistoryError.invalidTimestamp
         }
         return try connection.transaction {
@@ -84,12 +85,12 @@ public actor HistoryStore {
                 "INSERT INTO clips(text, copied_at) VALUES (?, ?)") { statement, database in
                 try HistoryConnection.bind(text, to: 1, in: statement)
                 try HistoryConnection.check(sqlite3_bind_double(
-                    statement, 2, copiedAt.timeIntervalSince1970))
+                    statement, 2, timestamp))
                 try HistoryConnection.check(sqlite3_step(statement), expecting: SQLITE_DONE)
                 return sqlite3_last_insert_rowid(database)
             }
             try connection.prune(to: historyLimit)
-            return TextClip(id: id, text: text, copiedAt: copiedAt)
+            return TextClip(id: id, text: text, copiedAt: Date(timeIntervalSince1970: timestamp))
         }
     }
 

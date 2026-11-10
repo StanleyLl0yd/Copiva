@@ -26,12 +26,14 @@ final class HistoryStoreTests: XCTestCase {
         let directory = location()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try HistoryStore(directory: directory)
-        let text = "Привет, café 👋\u{0}and more text"
-        let original = try await store.record(text, copiedAt: Date(timeIntervalSince1970: 1234))
+        let text = "Привет, cafe\u{301} 👋\u{0}and more text"
+        let original = try await store.record(
+            text, copiedAt: Date(timeIntervalSinceReferenceDate: 0.123456789))
         await store.close()
         let reopened = try HistoryStore(directory: directory)
         let rows = try await reopened.search()
         XCTAssertEqual(rows, [original])
+        XCTAssertEqual(rows.first.map { Array($0.text.utf8) }, Array(text.utf8))
         let next = try await reopened.record("next")
         XCTAssertGreaterThan(next.id, original.id)
         await reopened.close()
@@ -287,8 +289,11 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(removed)
         XCTAssertFalse(removedTwice)
         XCTAssertTrue(matches.isEmpty)
+        let third = try await store.record("also retained")
         try sql("""
-            CREATE TRIGGER reject_clear BEFORE DELETE ON clips BEGIN
+            CREATE TRIGGER reject_clear BEFORE DELETE ON clips
+            WHEN old.id = \(third.id) BEGIN
+                DELETE FROM clips WHERE id = \(second.id);
                 SELECT RAISE(FAIL, 'synthetic clear failure');
             END;
             """, in: directory)
@@ -299,7 +304,7 @@ final class HistoryStoreTests: XCTestCase {
             XCTAssertEqual(error as? HistoryError, .database(SQLITE_CONSTRAINT))
         }
         let unchanged = try await store.search()
-        XCTAssertEqual(unchanged, [second])
+        XCTAssertEqual(unchanged, [third, second])
         try sql("DROP TRIGGER reject_clear", in: directory)
         try await store.clearOrdinaryHistory()
         let empty = try await store.search()
@@ -307,7 +312,7 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(empty.isEmpty)
         XCTAssertTrue(oldMatches.isEmpty)
         let next = try await store.record("after clearing")
-        XCTAssertGreaterThan(next.id, second.id)
+        XCTAssertGreaterThan(next.id, third.id)
         await store.close()
     }
 }
