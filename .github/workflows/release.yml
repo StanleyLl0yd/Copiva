@@ -117,6 +117,8 @@ jobs:
                   or commit["committer"]["email"] != "noreply@github.com"
                   or commit["verification"]["verified"] is not True):
               raise SystemExit("Protected-main commit identity is not verified")
+          if api(f"repos/{repo}/branches/main")["commit"]["sha"] != sha:
+              raise SystemExit("Main moved during verification; review the current release source")
           print("Exact-main gates, alert policy and authorized Git identities verified")
           PY
       - name: Publish and verify numeric release
@@ -214,6 +216,8 @@ jobs:
           if (public["draft"] or public["prerelease"] or public["tag_name"] != tag
                   or public["name"] != version):
               raise SystemExit("Release publication state is incorrect")
+          if {a["name"] for a in public["assets"]} != set(assets):
+              raise SystemExit("Published release assets differ from the verified draft")
           verify = destination / "public-download"
           verify.mkdir()
           for asset in public["assets"]:
