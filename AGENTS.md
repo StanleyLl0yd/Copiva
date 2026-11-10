@@ -29,7 +29,7 @@ These instructions apply to the entire repository and to every coding, security,
 
 - Use focused topic branches and protected, squash-only pull requests. Never push directly to `main`, bypass rules, suppress security findings or remove required checks to get a merge.
 - Inspect the exact PR diff and its dependencies, error paths, privacy impact, regression tests and CI before merging. Verify exact-head required checks and post-merge exact-main CI. Do not assert tests, native UI behavior or notarization without evidence.
-- Prefer targeted local verification first, then expand to full checks for security-sensitive changes, milestone exits or release gates.
+- Run targeted verification in GitHub Actions first, then expand to complete checks for security-sensitive changes, milestone exits or release gates.
 - GitHub Actions use immutable full 40-character SHAs with a nearby version comment; pin workflow containers by digest, use `persist-credentials: false`, minimal job-level permissions and no privileged PR code execution. Do not add `pull_request_target` without an explicit threat-model review.
 - Never commit tokens, credentials, personal identifiers, private or work contact details, signing keys, provisioning profiles, environment secrets, local user data, or real captured clipboard content. For new Git metadata, use the repository owner's GitHub profile name (explicitly authorized by the owner on 2026-11-10) and verified GitHub-generated noreply email. GitHub's verified service committer is permitted for protected squash merges. Do not copy profile identity strings into source, documentation, fixtures or logs.
 - Preserve CodeQL, Dependabot, secret scanning/push protection and repository rulesets. Security/release config changes require focused PR review and CI.
@@ -71,3 +71,14 @@ Report verified facts with exact relevant commit/PR/check links. Distinguish pla
 - Record the version in `release/VERSION`, require a matching owner-authorized `release/REQUEST`, and verify the app bundle version before packaging. Publish only from successfully verified protected main.
 - Numeric naming does not imply user acceptance, Developer ID signing, notarization or production readiness. Describe the actual implemented features and signing status accurately.
 - Never move/delete protected historical tags or overwrite published assets. Supersede an earlier publication with a new authorized numeric release; preserve essential historical evidence in GitHub.
+
+## Distribution architecture
+
+- The owner selected Apple Silicon-only distribution on 2026-11-10. Future application packages target arm64 only; universal/Intel packaging is not required unless the owner explicitly changes this scope.
+- Keep already published version tags/assets immutable. Release 0.0.1 remains its verified universal artifact; subsequent versions use the arm64 package pipeline.
+
+## GitHub-only agent work
+
+- Keep durable project source, documentation, reports, decisions, reviews, history and artifacts in GitHub. Inspect and edit through GitHub tools/APIs; run compilation, tests, scans and packaging in GitHub Actions.
+- Do not create a persistent external repository checkout or use a personal device/Codex workspace as project storage. Temporary runner checkouts are allowed only to execute workflows.
+- The owner explicitly authorized downloading/installing the application binary and reporting manual Mac test results; do not ask the owner to compile, edit or upload project source.

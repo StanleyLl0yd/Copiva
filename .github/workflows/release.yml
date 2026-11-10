@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    name: Verify universal release application
+    name: Verify Apple Silicon release application
     if: github.repository == 'StanleyLl0yd/Copiva'
-    runs-on: macos-26-intel
+    runs-on: macos-26
     timeout-minutes: 20
     permissions:
       contents: read
@@ -132,7 +132,7 @@ jobs:
           if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version):
               raise SystemExit("Release version must be numeric X.Y.Z")
           tag = f"v{version}"
-          archive = f"Copiva-{version}-macos-universal.zip"
+          archive = f"Copiva-{version}-macos-arm64.zip"
           if repo != "StanleyLl0yd/Copiva" or not re.fullmatch(r"[0-9a-f]{40}", sha):
               raise SystemExit("Unexpected release source")
           artifact = os.environ["ARTIFACT_NAME"]
@@ -179,7 +179,7 @@ jobs:
           if (metadata["source_commit"] != sha or metadata["release_tag"] != tag
                   or metadata.get("version") != version or metadata["source_ref"] != "refs/heads/main"
                   or metadata["source_repository"] != repo
-                  or metadata["architectures"] != ["arm64", "x86_64"]
+                  or metadata["architectures"] != ["arm64"]
                   or metadata["code_signature"] != "ad-hoc"
                   or metadata["apple_notarized"] is not False
                   or metadata["archive_sha256"] != hashes[archive]):
@@ -232,11 +232,4 @@ jobs:
           print(public["html_url"])
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               summary.write(f"Published and verified numeric release: {public['html_url']}\n")
-          
-          legacy = api(f"repos/{repo}/releases/tags/v0.0.1-m0.1", missing=True)
-          if legacy is not None and legacy["id"] != public["id"] and not legacy["draft"]:
-              archived = json.dumps({"draft": True, "name": "0.0.1"})
-              run("gh", "api", f"repos/{repo}/releases/{legacy['id']}", "--method", "PATCH",
-                  "--input", "-", input=archived, text=True, stdout=subprocess.DEVNULL)
-              print("Previous qualified publication archived as a draft; tag/assets preserved")
           PY

@@ -20,8 +20,10 @@ The connected App and read-only Actions token still return 403 for several owner
 
 Versions and GitHub release titles are numeric `X.Y.Z` only; ordinary GitHub Releases have `prerelease: false`, with protected `vX.Y.Z` tags. `release/VERSION`, bundle version and owner-authorized `release/REQUEST` must match.
 
-Read-only PR build jobs verify the universal app, ad-hoc signature, ZIP and checksums. Publication runs only on protected main, waits for exact-main CI/Swift CodeQL and medium-or-higher/error alert policy, verifies authorized profile/noreply metadata, stages and verifies draft bytes, then publishes and checks anonymous public downloads. No overwrite or protected-tag movement/deletion is permitted. A superseded qualified preview entry is kept as a draft after its numeric replacement succeeds, preserving tag and original bytes.
+Read-only PR build jobs verify the Apple Silicon arm64 app, ad-hoc signature, ZIP and checksums. Publication runs only on protected main, waits for exact-main CI/Swift CodeQL and medium-or-higher/error alert policy, verifies authorized profile/noreply metadata, stages and verifies draft bytes, then publishes and checks anonymous public downloads. No overwrite or protected-tag movement/deletion is permitted. The superseded qualified preview entry is archived as a draft after 0.0.1 verification, preserving tag and original bytes; the completed one-time migration is retired from reusable automation.
 
 Temporary release evidence expires after seven days; final ZIP, SHA-256 and build metadata remain in GitHub Releases. The current pipeline uses ad-hoc signing without Apple Developer ID or Apple notarization. Numeric release naming does not establish production readiness or milestone acceptance. Production signing/notarization, canonical-icon approval and real-Mac acceptance remain required at their applicable gates.
 
 See `AGENTS.md`, `docs/release/RELEASING.md`, the audit reports and issue #2.
+
+The owner accepted M0 runtime behavior and supplied a running-app screenshot on 2026-11-10. Future distribution is Apple Silicon arm64 only; the already published 0.0.1 universal artifact remains immutable. See the complete M0 exit record and issue #2.
