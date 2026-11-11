@@ -2,7 +2,7 @@
 
 ## Implemented foundation
 
-The SwiftPM executable uses SwiftUI and AppKit for a menu-bar history window. M0 is accepted in issue #2. CopivaMac owns the platform clipboard adapter and observable history session; CopivaCore owns persistence. A native global shortcut and dedicated keyboard picker remain separate integration work.
+The SwiftPM executable uses SwiftUI and AppKit for a menu-bar history window. M0 is accepted in issue #2. CopivaMac owns the platform clipboard adapter and observable history session; CopivaCore owns persistence. The native global shortcut and nonactivating keyboard picker use this same session.
 
 ## M1 text persistence
 
@@ -28,9 +28,17 @@ Excluded bundle IDs are configurable in the menu. Attribution is the foreground 
 
 The menu exposes bounded search results, explicit Copy, recording controls, retention choices, exclusions and confirmed history clearing. Storage failures stop capture and preserve files; there is no automatic reset. Clear does not write the clipboard. Tests use private named pasteboards, isolated defaults and synthetic SQLite directories; no test reads NSPasteboard.general or asserts real-app UI acceptance.
 
+## Keyboard picker and paste
+
+A Carbon application-event handler registers a configurable physical key code and modifier combination without Input Monitoring. Settings persist only after a successful registration. Register the new combination before unregistering the previous one; conflicts preserve the old registration. First-launch conflicts retain the handler so a different combination can be assigned. Event-handler context is owned by the main-actor hotkey lifetime and removed at deinitialization. No global key listener records typed characters.
+
+The picker is a nonactivating NSPanel: search stays local, stable clip IDs preserve selection across refreshed results, Up/Down clamp at the edges, Return requests Paste, Command-Return copies, and Escape closes. Marked-text composition is left to the input method. Pointer-based placement clamps to the current screen's visible frame, including negative multi-display origins. Caret placement remains M3. Closing or dismissing the panel does not activate another app.
+
+PasteCoordinator separates permission/focus/event access from action policy for failure-path tests. Opening the picker captures the foreground running application and the original writable, non-secure AX text element only if already trusted; it never prompts. Explicit Paste may prompt for Accessibility. Newly granting permission does not schedule a later paste: reopen the picker and choose again. Missing permission/unverifiable focus keeps the picker open and copies instead. After panel dismissal, a bounded modifier-release wait and repeated AX/process/launch-identity checks protect the original destination. Cancellation/new invocation invalidates pending intent. The marked clipboard write's change count is checked again before posting Command-V; later clipboard changes are not restored or pasted deliberately.
+
+Automatic paste is conservative: applications that do not expose a writable AX text element use Copy/Command-V. Focus checks and event posting are separate OS operations, not an atomic guarantee, and a destination may ignore an event. The UI reports a paste request, not proof of insertion. AX messaging has a per-call timeout. Secure input, permission changes, app switching, IME composition, Spaces/fullscreen, focus restoration and actual insertion require the real-Mac checklist in docs/MANUAL_TESTING.md; synthetic policy tests and Carbon registration tests do not establish those runtime outcomes.
+
 ## Remaining product integration
 
-- Provide a configurable native global shortcut and keyboard-first picker.
-- Guard intended-app/focus insertion and request Accessibility only on explicit paste intent; offer safe Copy when unavailable.
 - Preserve supported original representations, rich text, images and file references through later adapters and managed payload files.
-- Add pinned retention independent of ordinary cleanup, caret positioning/fallbacks, application exclusions and the remaining roadmap gates.
+- Add pinned retention independent of ordinary cleanup, caret positioning and the remaining roadmap gates.

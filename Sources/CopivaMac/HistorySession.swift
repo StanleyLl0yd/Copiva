@@ -13,6 +13,7 @@ public final class HistorySession {
     public var query = ""
     public var errorMessage: String?
     public var notice: String?
+    public private(set) var lastCopyChangeCount: Int?
     public var excludedApplications: String {
         didSet { defaults.set(excludedApplications, forKey: "excludedApplications") }
     }
@@ -138,6 +139,7 @@ public final class HistorySession {
     @discardableResult
     public func copy(_ clip: TextClip) -> Bool {
         let copied = monitor.copyText(clip.text)
+        lastCopyChangeCount = monitor.lastWriteChangeCount
         notice = copied ? "Copied. Use Command-V in the destination app." : "Copy failed. Try again."
         return copied
     }

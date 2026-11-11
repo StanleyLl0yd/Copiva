@@ -3,19 +3,45 @@ import CopivaCore
 import CopivaMac
 import SwiftUI
 
+@MainActor
+final class ApplicationController {
+    let session = HistorySession()
+    let shortcuts = ShortcutSettings()
+    private let picker: PickerController
+
+    init() { picker = PickerController(session: session) }
+
+    func start() {
+        shortcuts.start { [weak self] in self?.showPicker() }
+        Task { await session.open() }
+    }
+
+    func showPicker() { picker.toggle() }
+
+    func quit() {
+        shortcuts.stop()
+        picker.dismiss()
+        Task {
+            await session.close()
+            NSApplication.shared.terminate(nil)
+        }
+    }
+}
+
 @main
 struct CopivaApp: App {
-    @State private var session: HistorySession
+    @State private var controller: ApplicationController
 
     init() {
-        let session = HistorySession()
-        _session = State(initialValue: session)
-        Task { await session.open() }
+        let controller = ApplicationController()
+        _controller = State(initialValue: controller)
+        controller.start()
     }
 
     var body: some Scene {
         MenuBarExtra("Copiva", systemImage: "clipboard") {
-            HistoryMenu(session: session)
+            HistoryMenu(session: controller.session, shortcuts: controller.shortcuts,
+                        onShowPicker: controller.showPicker, onQuit: controller.quit)
         }
         .menuBarExtraStyle(.window)
     }
@@ -23,6 +49,10 @@ struct CopivaApp: App {
 
 private struct HistoryMenu: View {
     @Bindable var session: HistorySession
+    @Bindable var shortcuts: ShortcutSettings
+    let onShowPicker: () -> Void
+    let onQuit: () -> Void
+    @State private var recordingShortcut = false
     @State private var askingConsent = false
     @State private var askingClear = false
     @State private var showingSettings = false
@@ -39,6 +69,11 @@ private struct HistoryMenu: View {
                 Text(error).font(.callout).foregroundStyle(.red)
                     .accessibilityLabel("History error: " + error)
                 Button("Dismiss error") { session.errorMessage = nil }
+            }
+            Button("Open history · " + shortcuts.shortcut.displayLabel, action: onShowPicker)
+                .disabled(!session.isReady)
+            if let error = shortcuts.errorMessage {
+                Text(error).font(.caption).foregroundStyle(.red)
             }
             HStack {
                 Button(session.isRecording ? "Pause recording" : "Record copied text") {
@@ -92,6 +127,20 @@ private struct HistoryMenu: View {
             }
             if showingSettings {
                 Divider()
+                if recordingShortcut {
+                    Text("Press a shortcut with Command, Control or Option. Escape cancels.")
+                        .font(.caption)
+                    ShortcutRecorder(onRecord: { shortcut in
+                        shortcuts.change(to: shortcut)
+                        recordingShortcut = false
+                    }, onCancel: { recordingShortcut = false })
+                    .frame(height: 28)
+                    .background(Color.accentColor.opacity(0.1),
+                                in: RoundedRectangle(cornerRadius: 6))
+                    Button("Cancel shortcut change") { recordingShortcut = false }
+                } else {
+                    Button("Change shortcut…") { recordingShortcut = true }
+                }
                 Picker("Keep copies", selection: Binding(
                     get: { session.historyLimit },
                     set: { limit in Task { await session.changeLimit(limit) } }
@@ -113,7 +162,7 @@ private struct HistoryMenu: View {
                 Text(notice).font(.caption).foregroundStyle(.secondary)
             }
             Divider()
-            Button("Quit Copiva") { NSApplication.shared.terminate(nil) }
+            Button("Quit Copiva", action: onQuit)
         }
         .padding(16).frame(width: 380)
         .alert("Save copied text on this Mac?", isPresented: $askingConsent) {
