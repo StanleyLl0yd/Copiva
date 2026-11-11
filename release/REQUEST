@@ -1,6 +1,7 @@
 {
-  "version": "0.0.1",
+  "version": "0.0.2",
   "authorized_by": "StanleyLl0yd",
-  "authorization_date": "2026-11-10",
-  "publication": "github-release"
+  "authorization_date": "2026-11-11",
+  "publication": "actions-artifact",
+  "scope": "Build-only M1 validation under the owner's instruction to continue development. GitHub Release publication is not authorized."
 }

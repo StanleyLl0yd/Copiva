@@ -91,12 +91,15 @@ public final class HistorySession {
     func pollOnce() async {
         guard !isBusy, let store else { return }
         let excluded = Set(excludedApplications.split { $0 == "," || $0.isWhitespace }.map(String.init))
-        guard let text = monitor.readNewText(
-            sourceBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
-            excludedBundleIDs: excluded) else { return }
         do {
+            guard let text = try monitor.readNewText(
+                sourceBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+                excludedBundleIDs: excluded) else { return }
             _ = try await store.record(text)
             await reload()
+        } catch ClipboardReadError.accessDenied {
+            setRecording(false)
+            errorMessage = "macOS denied clipboard access. Allow Copiva in System Settings, then resume recording."
         } catch {
             setRecording(false)
             errorMessage = "Recording stopped because history could not be saved. Existing files have been kept."

@@ -12,13 +12,16 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from release_policy import build_authorized, publication_authorized
+
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = (ROOT / "release" / "VERSION").read_text(encoding="utf-8").strip()
 if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", VERSION):
     raise SystemExit("Release versions must contain only numeric X.Y.Z components")
 request = json.loads((ROOT / "release" / "REQUEST").read_text(encoding="utf-8"))
-if request.get("version") != VERSION or request.get("authorized_by") != "StanleyLl0yd":
-    raise SystemExit("A matching owner-authorized release request is required")
+if not build_authorized(request, VERSION):
+    raise SystemExit("A matching owner-authorized build/release request is required")
+authorized = publication_authorized(request, VERSION)
 TAG = f"v{VERSION}"
 ARCHIVE = f"Copiva-{VERSION}-macos-arm64.zip"
 
@@ -107,6 +110,7 @@ run_url = (
 )
 metadata = {
     "schema_version": 1, "version": VERSION, "release_tag": TAG,
+    "publication_authorized": authorized,
     "source_repository": "StanleyLl0yd/Copiva", "source_commit": commit,
     "source_ref": os.environ["GITHUB_REF"], "workflow_run": run_url,
     "architectures": sorted(architectures), "minimum_macos": "26.0",
@@ -128,4 +132,5 @@ notes = (ROOT / "docs" / "releases" / f"{VERSION}.md").read_text(encoding="utf-8
 artifact_name = f"copiva-{VERSION}-{commit}-{os.environ['GITHUB_RUN_ATTEMPT']}"
 with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
     output.write(f"artifact_name={artifact_name}\nversion={VERSION}\n")
+    output.write(f"publication_authorized={str(authorized).lower()}\n")
 print(f"Verified {ARCHIVE}: {metadata['archive_sha256']}")

@@ -1,6 +1,10 @@
 import AppKit
 import CopivaCore
 
+public enum ClipboardReadError: Error, Equatable, Sendable {
+    case accessDenied
+}
+
 /// All pasteboard access stays on the main actor. No clipboard contents are logged.
 @MainActor
 public final class ClipboardMonitor {
@@ -15,12 +19,19 @@ public final class ClipboardMonitor {
     ]
 
     private let pasteboard: NSPasteboard
+    private let accessBehavior: @MainActor () -> NSPasteboard.AccessBehavior
     private var lastChangeCount: Int
     public private(set) var isRecording = false
     public private(set) var lastWriteChangeCount: Int?
 
-    public init(pasteboard: NSPasteboard = .general) {
+    public convenience init(pasteboard: NSPasteboard = .general) {
+        self.init(pasteboard: pasteboard, accessBehavior: { pasteboard.accessBehavior })
+    }
+
+    init(pasteboard: NSPasteboard,
+         accessBehavior: @escaping @MainActor () -> NSPasteboard.AccessBehavior) {
         self.pasteboard = pasteboard
+        self.accessBehavior = accessBehavior
         lastChangeCount = pasteboard.changeCount
     }
 
@@ -30,8 +41,9 @@ public final class ClipboardMonitor {
         isRecording = enabled
     }
 
-    public func readNewText(sourceBundleID: String?, excludedBundleIDs: Set<String>) -> String? {
+    public func readNewText(sourceBundleID: String?, excludedBundleIDs: Set<String>) throws -> String? {
         guard isRecording else { return nil }
+        guard accessBehavior() != .alwaysDeny else { throw ClipboardReadError.accessDenied }
         let observedCount = pasteboard.changeCount
         guard observedCount != lastChangeCount else { return nil }
         lastChangeCount = observedCount

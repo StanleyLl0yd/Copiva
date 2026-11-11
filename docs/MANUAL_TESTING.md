@@ -8,6 +8,7 @@ Use only synthetic text such as `Copiva sample one`, `Copiva sample two` and `П
 
 - Launch with fresh Copiva settings: recording is paused, and existing clipboard text is not imported.
 - Choose Record copied text, read the local plaintext-storage explanation, and cancel once. Copy synthetic text; it must not appear.
+- If macOS asks for clipboard access, exercise refusal and allowance. With persistent Deny, recording must stop with an explanation; grant access through System Settings and explicitly resume. No content should be imported from before resume.
 - Enable recording. Copy the three synthetic samples in TextEdit; each new copy appears once, with search working for English and Russian word prefixes.
 - Copy an item from Copiva; it must not become a new history entry.
 - Pause, copy another sample, then resume: the paused sample must not be imported retroactively.

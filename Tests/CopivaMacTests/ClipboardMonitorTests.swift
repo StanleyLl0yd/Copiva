@@ -21,7 +21,7 @@ final class ClipboardMonitorTests: XCTestCase {
     private func read(_ monitor: ClipboardMonitor,
                       source: String? = "test.synthetic.app",
                       exclusions: Set<String> = []) -> String? {
-        monitor.readNewText(sourceBundleID: source, excludedBundleIDs: exclusions)
+        try? monitor.readNewText(sourceBundleID: source, excludedBundleIDs: exclusions)
     }
 
     func testConsentResumeAndPauseNeverImportExistingClipboard() {
@@ -50,9 +50,15 @@ final class ClipboardMonitorTests: XCTestCase {
         let monitor = ClipboardMonitor(pasteboard: board)
         monitor.setRecording(true)
         for marker in ClipboardMonitor.ignoredTypes {
-            write("synthetic marked text", to: board, types: [marker])
+            let provider = CountingProvider()
+            let item = NSPasteboardItem()
+            item.setDataProvider(provider, forTypes: [.string])
+            XCTAssertTrue(item.setData(Data(), forType: marker))
+            board.clearContents()
+            XCTAssertTrue(board.writeObjects([item]))
             XCTAssertNil(read(monitor))
             XCTAssertNil(read(monitor))
+            XCTAssertEqual(provider.calls, 0)
         }
         write("ordinary text", to: board)
         XCTAssertEqual(read(monitor), "ordinary text")
@@ -141,6 +147,30 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(provider.originalCount, 0)
         XCTAssertNotEqual(board.changeCount, provider.originalCount)
     }
+    func testDeniedAccessNeverRequestsPayloadAndDoesNotConsumeAllowedFutureRead() throws {
+        let board = board()
+        defer { board.releaseGlobally() }
+        let permission = SyntheticClipboardPermission()
+        let monitor = ClipboardMonitor(pasteboard: board, accessBehavior: {
+            permission.denied ? .alwaysDeny : .alwaysAllow
+        })
+        monitor.setRecording(true)
+        let provider = CountingProvider()
+        let item = NSPasteboardItem()
+        item.setDataProvider(provider, forTypes: [.string])
+        board.clearContents()
+        XCTAssertTrue(board.writeObjects([item]))
+        XCTAssertThrowsError(try monitor.readNewText(
+            sourceBundleID: "test.synthetic.app", excludedBundleIDs: [])) {
+            XCTAssertEqual($0 as? ClipboardReadError, .accessDenied)
+        }
+        XCTAssertEqual(provider.calls, 0)
+        permission.denied = false
+        XCTAssertEqual(try monitor.readNewText(
+            sourceBundleID: "test.synthetic.app", excludedBundleIDs: []), "synthetic allowed copy")
+        XCTAssertEqual(provider.calls, 1)
+    }
+
 }
 
 private final class ChangingProvider: NSObject, NSPasteboardItemDataProvider {
@@ -156,4 +186,18 @@ private final class ChangingProvider: NSObject, NSPasteboardItemDataProvider {
         board.clearContents()
         board.setString("synthetic replacement", forType: .string)
     }
+}
+
+private final class CountingProvider: NSObject, NSPasteboardItemDataProvider {
+    var calls = 0
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem,
+                    provideDataForType type: NSPasteboard.PasteboardType) {
+        calls += 1
+        item.setString("synthetic allowed copy", forType: type)
+    }
+}
+
+@MainActor
+private final class SyntheticClipboardPermission {
+    var denied = true
 }

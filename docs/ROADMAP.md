@@ -1,6 +1,6 @@
 # Copiva roadmap
 
-All functionality below is planned unless explicitly marked done.
+Checkboxes track accepted milestone work. Source implementation can be ahead of acceptance; CI alone does not complete an item.
 
 **Milestone acceptance:** each milestone has a full repository-wide, two-pass audit, safe-refactoring, security and code-review exit gate, documented in `AGENTS.md` and `docs/agent/AUDIT_REFACTOR.md`. Do not mark a milestone accepted on CI alone.
 
@@ -16,6 +16,8 @@ All functionality below is planned unless explicitly marked done.
 M0 runtime acceptance is confirmed by the owner. The complete exit record is in `docs/agent/M0_EXIT_2026-11-10.md`; final protected-main verification and milestone closure are recorded in issue #2. Release versions are numeric only; future distribution targets Apple Silicon arm64.
 
 ## M1 — First usable clipboard history
+
+Text persistence/capture/menu and the keyboard picker/paste path are implemented in the M1 PR series. Exit issue #6 tracks final protected-main verification and real-Mac acceptance; M1 remains open until that gate passes.
 - [ ] Observe supported clipboard changes without recording app-generated writes
 - [ ] Persist ordinary text history in SQLite
 - [ ] Quick picker; assignable global keyboard shortcut

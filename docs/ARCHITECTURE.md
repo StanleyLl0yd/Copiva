@@ -42,3 +42,5 @@ Automatic paste is conservative: applications that do not expose a writable AX t
 
 - Preserve supported original representations, rich text, images and file references through later adapters and managed payload files.
 - Add pinned retention independent of ordinary cleanup, caret positioning and the remaining roadmap gates.
+
+Platform reference: [Apple NSPasteboard.AccessBehavior](https://developer.apple.com/documentation/appkit/nspasteboard/accessbehavior-swift.enum). General-pasteboard programmatic access may ask; private named test pasteboards default to allowing access. Synthetic denial tests substitute the permission query and prove the data provider is not invoked, without changing real OS privacy settings.
