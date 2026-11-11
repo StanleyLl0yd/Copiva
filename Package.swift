@@ -10,7 +10,9 @@ let package = Package(
     targets: [
         .target(name: "CopivaCore", path: "Sources/CopivaCore",
                 linkerSettings: [.linkedLibrary("sqlite3")]),
-        .executableTarget(name: "Copiva", dependencies: ["CopivaCore"], path: "Sources/Copiva"),
-        .testTarget(name: "CopivaCoreTests", dependencies: ["CopivaCore"], path: "Tests/CopivaCoreTests")
+        .target(name: "CopivaMac", dependencies: ["CopivaCore"]),
+        .executableTarget(name: "Copiva", dependencies: ["CopivaCore", "CopivaMac"], path: "Sources/Copiva"),
+        .testTarget(name: "CopivaCoreTests", dependencies: ["CopivaCore"], path: "Tests/CopivaCoreTests"),
+        .testTarget(name: "CopivaMacTests", dependencies: ["CopivaMac", "CopivaCore"])
     ]
 )

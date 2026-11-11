@@ -2,7 +2,7 @@
 
 ## Implemented foundation
 
-The SwiftPM executable uses SwiftUI and AppKit for a menu-bar window and Quit. M0 is accepted in issue #2. The runtime does not yet observe the clipboard or connect a picker to persistence.
+The SwiftPM executable uses SwiftUI and AppKit for a menu-bar history window. M0 is accepted in issue #2. CopivaMac owns the platform clipboard adapter and observable history session; CopivaCore owns persistence. A native global shortcut and dedicated keyboard picker remain separate integration work.
 
 ## M1 text persistence
 
@@ -18,9 +18,18 @@ CopivaCore now provides an actor-owned HistoryStore and immutable, Sendable Text
 
 Regression tests use only synthetic contents and real temporary SQLite databases: reopen identity/Unicode/NUL preservation, search literals, retention/FTS consistency, forced transaction failure, future/foreign/corrupt-file and malformed-record preservation, permissions/symlinks, bounds, explicit deletion/clear, concurrent calls and abrupt SQLite-writer termination before/after commit. Crash fixtures use the platform SQLite CLI with a readiness checkpoint and SIGKILL, exercising actual WAL recovery without production test hooks. Native CI is the source of executed results; do not infer real clipboard/UI acceptance from these backend tests.
 
+## Text capture and menu integration
+
+HistorySession opens the app-owned Application Support/Copiva/History directory, loads saved history while paused, and polls only after consent. Recording is off on first launch; enabling it requires an explanatory confirmation. Consent and the recording choice persist separately. Resume takes a fresh change-count baseline, so existing clipboard data is never imported retroactively. One awaited polling loop prevents a backlog of capture tasks. Search replies carry a generation to prevent stale results replacing newer UI state.
+
+ClipboardMonitor reads a single UTF-8 text item, verifies the pasteboard change count after reading, skips file references, and consumes each observed change once. It skips known concealed, transient, auto-generated, 1Password and Copiva-generated type markers. Explicit Copy writes a marked item so it is not recaptured. It never restores an old clipboard over a newer copy. Oversize/empty/invalid text is skipped; output is limited to the core's 256 KiB bound. AppKit's data-provider API may allocate or wait before returning data; the post-read byte limit is not a pre-allocation or hard time guarantee.
+
+Excluded bundle IDs are configurable in the menu. Attribution is the foreground app at observation time, not an authoritative producer identity; background producers and rapid focus changes are a platform limitation. An unknown source is skipped when exclusions are configured. Markers/exclusions cannot identify every secret or password manager. No clipboard contents, paths or raw database errors enter diagnostics. Saved text is plaintext local data; no new network or OS permission is requested for capture/copy.
+
+The menu exposes bounded search results, explicit Copy, recording controls, retention choices, exclusions and confirmed history clearing. Storage failures stop capture and preserve files; there is no automatic reset. Clear does not write the clipboard. Tests use private named pasteboards, isolated defaults and synthetic SQLite directories; no test reads NSPasteboard.general or asserts real-app UI acceptance.
+
 ## Remaining product integration
 
-- Observe NSPasteboard changes with explicit consent, sensitive-type filtering, bounded reads and app-write suppression.
 - Provide a configurable native global shortcut and keyboard-first picker.
 - Guard intended-app/focus insertion and request Accessibility only on explicit paste intent; offer safe Copy when unavailable.
 - Preserve supported original representations, rich text, images and file references through later adapters and managed payload files.
