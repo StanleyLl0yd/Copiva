@@ -53,4 +53,45 @@ final class GlobalHotkeyTests: XCTestCase {
         }
         XCTAssertEqual(hotkey.shortcut, key)
     }
+    func testStartupConflictCanBeResolvedWithoutRestartingHandler() throws {
+        let suite = "copiva-shortcut-tests-\(UUID().uuidString)"
+        let firstDefaults = try XCTUnwrap(UserDefaults(suiteName: suite + "-first"))
+        let secondDefaults = try XCTUnwrap(UserDefaults(suiteName: suite + "-second"))
+        defer {
+            firstDefaults.removePersistentDomain(forName: suite + "-first")
+            secondDefaults.removePersistentDomain(forName: suite + "-second")
+        }
+        let modifiers = UInt32(cmdKey | controlKey | optionKey | shiftKey)
+        let occupied = GlobalShortcut(keyCode: 64, modifiers: modifiers, keyLabel: "F17")
+        let replacement = GlobalShortcut(keyCode: 106, modifiers: modifiers, keyLabel: "F16")
+        firstDefaults.set(try JSONEncoder().encode(occupied), forKey: "globalShortcut")
+        secondDefaults.set(try JSONEncoder().encode(occupied), forKey: "globalShortcut")
+        let first = ShortcutSettings(defaults: firstDefaults)
+        let second = ShortcutSettings(defaults: secondDefaults)
+        defer { first.stop(); second.stop() }
+        first.start(onPress: {})
+        XCTAssertTrue(first.isRegistered)
+        second.start(onPress: {})
+        XCTAssertFalse(second.isRegistered)
+        XCTAssertNotNil(second.errorMessage)
+        second.change(to: replacement)
+        XCTAssertTrue(second.isRegistered)
+        XCTAssertNil(second.errorMessage)
+        XCTAssertEqual(second.shortcut, replacement)
+        let data = try XCTUnwrap(secondDefaults.data(forKey: "globalShortcut"))
+        XCTAssertEqual(try JSONDecoder().decode(GlobalShortcut.self, from: data), replacement)
+    }
+
+    func testDeinitializationReleasesRegistration() throws {
+        let key = GlobalShortcut(keyCode: 113, modifiers: UInt32(cmdKey | controlKey | optionKey),
+                                 keyLabel: "F15")
+        var transient: GlobalHotkey? = try GlobalHotkey(onPress: {})
+        try transient?.register(key)
+        transient = nil
+        let next = try GlobalHotkey(onPress: {})
+        defer { next.stop() }
+        try next.register(key)
+        XCTAssertEqual(next.shortcut, key)
+    }
+
 }

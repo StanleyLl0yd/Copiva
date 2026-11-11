@@ -100,7 +100,8 @@ private final class SystemPasteAccess: PasteAccess {
     var hasTarget: Bool { app != nil && focusedElement != nil }
 
     func requestPermission() {
-        let key = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        // The public option key avoids importing a mutable C global into Swift concurrency.
+        let key = "AXTrustedCheckOptionPrompt"
         _ = AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
@@ -137,7 +138,7 @@ private final class SystemPasteAccess: PasteAccess {
         AXUIElementSetMessagingTimeout(application, 0.2)
         guard let value = attribute(kAXFocusedUIElementAttribute, of: application),
               CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
-        let element = unsafeBitCast(value, to: AXUIElement.self)
+        let element = unsafeDowncast(value, to: AXUIElement.self)
         AXUIElementSetMessagingTimeout(element, 0.2)
         let role = attribute(kAXRoleAttribute, of: element) as? String
         let subrole = attribute(kAXSubroleAttribute, of: element) as? String
@@ -154,8 +155,11 @@ private final class SystemPasteAccess: PasteAccess {
         return flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]).isEmpty
     }
 
-    func postCommandV() -> Bool {
-        guard isTrusted, targetIsFocused, modifiersAreReleased,
+    var clipboardChangeCount: Int { NSPasteboard.general.changeCount }
+
+    func postCommandV(expectedClipboardChangeCount: Int) -> Bool {
+        guard clipboardChangeCount == expectedClipboardChangeCount,
+              isTrusted, targetIsFocused, modifiersAreReleased,
               let source = CGEventSource(stateID: .combinedSessionState),
               let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false) else {

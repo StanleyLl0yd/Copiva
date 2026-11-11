@@ -41,9 +41,10 @@ public final class ShortcutSettings {
                 errorMessage = "The shortcut handler is unavailable. Close and reopen Copiva."
                 return
             }
+            let data = try JSONEncoder().encode(candidate)
             try hotkey.register(candidate)
             shortcut = candidate
-            defaults.set(try JSONEncoder().encode(candidate), forKey: "globalShortcut")
+            defaults.set(data, forKey: "globalShortcut")
             errorMessage = nil
             isRegistered = true
         } catch {

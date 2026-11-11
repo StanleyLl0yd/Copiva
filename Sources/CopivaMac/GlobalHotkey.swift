@@ -126,7 +126,7 @@ private let copivaHotkeyHandler: EventHandlerUPP = { _, event, context in
     var eventID = EventHotKeyID()
     let result = GetEventParameter(event, EventParamName(kEventParamDirectObject),
                                   EventParamType(typeEventHotKeyID), nil,
-                                  UInt32(MemoryLayout<EventHotKeyID>.size), nil, &eventID)
+                                  MemoryLayout<EventHotKeyID>.size, nil, &eventID)
     guard result == noErr else { return result }
     return MainActor.assumeIsolated {
         Unmanaged<GlobalHotkey>.fromOpaque(context).takeUnretainedValue().receive(eventID)
