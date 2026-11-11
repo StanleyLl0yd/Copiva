@@ -45,6 +45,8 @@ jobs:
       - name: Package and verify numeric app and ZIP
         id: package
         run: python3 scripts/package_app.py
+      - name: Smoke launch with recording disabled
+        run: python3 scripts/smoke_app.py
       - name: Retain release evidence for seven days
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
