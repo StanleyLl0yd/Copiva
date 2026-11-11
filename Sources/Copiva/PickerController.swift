@@ -82,12 +82,12 @@ final class PickerController: NSObject, NSWindowDelegate {
     }
 
     private func copySelected() {
-        guard !state.isBusy, let selected else { return }
+        guard !state.isBusy, session.isReady, !session.isBusy, let selected else { return }
         if session.copy(selected) { dismiss() }
     }
 
     private func pasteSelected() {
-        guard !state.isBusy, let selected else { return }
+        guard !state.isBusy, session.isReady, !session.isBusy, let selected else { return }
         state.isBusy = true
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -206,7 +206,7 @@ private struct HistoryPicker: View {
                 Spacer()
                 Button("Paste · ↩", action: onPaste)
             }
-            .disabled(state.selection.selectedID == nil || state.isBusy)
+            .disabled(state.selection.selectedID == nil || state.isBusy || !session.isReady || session.isBusy)
             Text("↑ ↓ choose · Esc close. If automatic paste is unavailable, the item is copied for Command-V.")
                 .font(.caption2).foregroundStyle(.secondary)
         }

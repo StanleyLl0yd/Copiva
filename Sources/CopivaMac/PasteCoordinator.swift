@@ -167,7 +167,8 @@ private final class SystemPasteAccess: PasteAccess {
         }
         down.flags = .maskCommand
         up.flags = .maskCommand
-        guard clipboardChangeCount == expectedClipboardChangeCount, targetIsFocused else { return false }
+        guard targetIsFocused, modifiersAreReleased,
+              clipboardChangeCount == expectedClipboardChangeCount else { return false }
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
         return true

@@ -41,4 +41,4 @@ Automatic paste is conservative: applications that do not expose a writable AX t
 ## Remaining product integration
 
 - Preserve supported original representations, rich text, images and file references through later adapters and managed payload files.
-- Add pinned retention independent of ordinary cleanup, caret positioning/fallbacks, application exclusions and the remaining roadmap gates.
+- Add pinned retention independent of ordinary cleanup, caret positioning and the remaining roadmap gates.
