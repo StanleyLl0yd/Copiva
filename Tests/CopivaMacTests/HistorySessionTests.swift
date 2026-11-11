@@ -1,5 +1,6 @@
 import AppKit
 import CopivaCore
+import SQLite3
 import XCTest
 @testable import CopivaMac
 
@@ -128,6 +129,40 @@ final class HistorySessionTests: XCTestCase {
         XCTAssertEqual(reopened.clips, [clip])
         XCTAssertFalse(reopened.isRecording)
         await reopened.close()
+    }
+
+    func testMalformedStoredRowsStopPreviouslyEnabledRecordingWithoutReset() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("copiva-session-tests-\(UUID().uuidString)")
+        let suite = "copiva-session-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let board = NSPasteboard(name: .init(suite))
+        defer {
+            board.releaseGlobally()
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let store = try HistoryStore(directory: directory)
+        _ = try await store.record("synthetic malformed record")
+        await store.close()
+        let path = directory.appendingPathComponent("history.sqlite3")
+        var database: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path.path, &database), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(database, "UPDATE clips SET copied_at = 'invalid'",
+                                    nil, nil, nil), SQLITE_OK)
+        XCTAssertEqual(sqlite3_close(database), SQLITE_OK)
+        let before = try Data(contentsOf: path)
+        defaults.set(true, forKey: "captureConsent")
+        defaults.set(true, forKey: "recordingEnabled")
+        let session = HistorySession(directory: directory, defaults: defaults, pasteboard: board)
+        await session.open()
+        XCTAssertFalse(session.isReady)
+        XCTAssertFalse(session.isRecording)
+        XCTAssertNotNil(session.errorMessage)
+        session.setRecording(true)
+        XCTAssertFalse(session.isRecording)
+        await session.close()
+        XCTAssertEqual(try Data(contentsOf: path), before)
     }
 
 }

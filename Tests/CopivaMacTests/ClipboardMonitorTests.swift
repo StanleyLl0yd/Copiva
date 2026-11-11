@@ -138,6 +138,7 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertTrue(board.writeObjects([item]))
         XCTAssertNil(read(monitor))
         // The replacement, if delivered by pboard synchronously, belongs to a later observation.
+        XCTAssertGreaterThanOrEqual(provider.originalCount, 0)
         XCTAssertNotEqual(board.changeCount, provider.originalCount)
     }
 }
