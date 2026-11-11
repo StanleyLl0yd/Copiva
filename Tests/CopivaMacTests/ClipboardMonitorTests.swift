@@ -21,7 +21,7 @@ final class ClipboardMonitorTests: XCTestCase {
     private func read(_ monitor: ClipboardMonitor,
                       source: String? = "test.synthetic.app",
                       exclusions: Set<String> = []) -> String? {
-        monitor.readNewText(sourceBundleID: source, excludedBundleIDs: exclusions)
+        try? monitor.readNewText(sourceBundleID: source, excludedBundleIDs: exclusions)
     }
 
     func testConsentResumeAndPauseNeverImportExistingClipboard() {
@@ -141,6 +141,30 @@ final class ClipboardMonitorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(provider.originalCount, 0)
         XCTAssertNotEqual(board.changeCount, provider.originalCount)
     }
+    func testDeniedAccessNeverRequestsPayloadAndDoesNotConsumeAllowedFutureRead() throws {
+        let board = board()
+        defer { board.releaseGlobally() }
+        var denied = true
+        let monitor = ClipboardMonitor(pasteboard: board, accessBehavior: {
+            denied ? .alwaysDeny : .alwaysAllow
+        })
+        monitor.setRecording(true)
+        let provider = CountingProvider()
+        let item = NSPasteboardItem()
+        item.setDataProvider(provider, forTypes: [.string])
+        board.clearContents()
+        XCTAssertTrue(board.writeObjects([item]))
+        XCTAssertThrowsError(try monitor.readNewText(
+            sourceBundleID: "test.synthetic.app", excludedBundleIDs: [])) {
+            XCTAssertEqual($0 as? ClipboardReadError, .accessDenied)
+        }
+        XCTAssertEqual(provider.calls, 0)
+        denied = false
+        XCTAssertEqual(try monitor.readNewText(
+            sourceBundleID: "test.synthetic.app", excludedBundleIDs: []), "synthetic allowed copy")
+        XCTAssertEqual(provider.calls, 1)
+    }
+
 }
 
 private final class ChangingProvider: NSObject, NSPasteboardItemDataProvider {
@@ -155,5 +179,14 @@ private final class ChangingProvider: NSObject, NSPasteboardItemDataProvider {
         item.setString("synthetic old snapshot", forType: type)
         board.clearContents()
         board.setString("synthetic replacement", forType: .string)
+    }
+}
+
+private final class CountingProvider: NSObject, NSPasteboardItemDataProvider {
+    var calls = 0
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem,
+                    provideDataForType type: NSPasteboard.PasteboardType) {
+        calls += 1
+        item.setString("synthetic allowed copy", forType: type)
     }
 }

@@ -169,7 +169,7 @@ private struct HistoryMenu: View {
             Button("Enable recording") { session.setRecording(true, consent: true) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("New text copies will be stored locally, without encryption. Copiva skips recognized confidential markers, but cannot identify every password or secret. You can pause recording, exclude apps, or clear history in settings.")
+            Text("New text copies will be stored locally, without encryption. Copiva skips recognized confidential markers, but cannot identify every password or secret. macOS may also ask to allow clipboard access. You can pause recording, exclude apps, or clear history in settings.")
         }
         .alert("Clear all saved history?", isPresented: $askingClear) {
             Button("Clear history", role: .destructive) {

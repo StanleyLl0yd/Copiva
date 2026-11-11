@@ -10,6 +10,9 @@ struct ShortcutRecorder: NSViewRepresentable {
         let view = RecorderView()
         view.onRecord = onRecord
         view.onCancel = onCancel
+        view.setAccessibilityElement(true)
+        view.setAccessibilityRole(.textField)
+        view.setAccessibilityValue("Waiting for a keyboard shortcut")
         view.setAccessibilityLabel("Press a shortcut using Command, Control or Option. Escape cancels.")
         return view
     }
