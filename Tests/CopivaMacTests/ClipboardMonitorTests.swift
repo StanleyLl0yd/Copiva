@@ -50,9 +50,15 @@ final class ClipboardMonitorTests: XCTestCase {
         let monitor = ClipboardMonitor(pasteboard: board)
         monitor.setRecording(true)
         for marker in ClipboardMonitor.ignoredTypes {
-            write("synthetic marked text", to: board, types: [marker])
+            let provider = CountingProvider()
+            let item = NSPasteboardItem()
+            item.setDataProvider(provider, forTypes: [.string])
+            XCTAssertTrue(item.setData(Data(), forType: marker))
+            board.clearContents()
+            XCTAssertTrue(board.writeObjects([item]))
             XCTAssertNil(read(monitor))
             XCTAssertNil(read(monitor))
+            XCTAssertEqual(provider.calls, 0)
         }
         write("ordinary text", to: board)
         XCTAssertEqual(read(monitor), "ordinary text")
