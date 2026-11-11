@@ -408,4 +408,27 @@ final class HistoryStoreTests: XCTestCase {
         XCTAssertTrue(originalMatches.isEmpty)
         await recovered.close()
     }
+
+    func testAncestorAliasIsAcceptedAndDanglingDatabaseLinkIsRejected() async throws {
+        let directory = location().resolvingSymlinksInPath()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let realParent = directory.appendingPathComponent("real")
+        let aliasParent = directory.appendingPathComponent("alias")
+        try FileManager.default.createDirectory(at: realParent, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: aliasParent, withDestinationURL: realParent)
+        let history = aliasParent.appendingPathComponent("history")
+        let store = try HistoryStore(directory: history)
+        let clip = try await store.record("synthetic alias path")
+        let rows = try await store.search()
+        XCTAssertEqual(rows, [clip])
+        await store.close()
+        let database = history.appendingPathComponent("history.sqlite3")
+        try FileManager.default.removeItem(at: database)
+        let missing = directory.appendingPathComponent("must-not-be-created")
+        try FileManager.default.createSymbolicLink(at: database, withDestinationURL: missing)
+        XCTAssertThrowsError(try HistoryStore(directory: history)) {
+            XCTAssertEqual($0 as? HistoryError, .invalidLocation)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: missing.path))
+    }
 }

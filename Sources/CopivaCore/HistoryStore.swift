@@ -50,18 +50,19 @@ public actor HistoryStore {
                 throw HistoryError.invalidLocation
             }
             try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
-            if manager.fileExists(atPath: url.path) {
-                let attributes = try manager.attributesOfItem(atPath: url.path)
-                guard attributes[.type] as? FileAttributeType == .typeRegular else {
-                    throw HistoryError.invalidLocation
-                }
+            if let attributes = try? manager.attributesOfItem(atPath: url.path),
+               attributes[.type] as? FileAttributeType != .typeRegular {
+                throw HistoryError.invalidLocation
             }
         } catch let error as HistoryError {
             throw error
         } catch {
             throw HistoryError.storageUnavailable
         }
-        let connection = try HistoryConnection(url: url)
+        // macOS uses ancestor aliases such as /var; the selected directory/file were checked above.
+        let canonicalURL = directory.resolvingSymlinksInPath()
+            .appendingPathComponent("history.sqlite3")
+        let connection = try HistoryConnection(url: canonicalURL)
         do {
             try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         } catch {
