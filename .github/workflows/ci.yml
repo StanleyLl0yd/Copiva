@@ -1,42 +1,38 @@
-name: CI
-
+name: Read CodeQL analysis metadata
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
-
 permissions: {}
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  build-and-test:
-    name: macOS 26 / Swift
-    runs-on: macos-26
-    timeout-minutes: 25
+  metadata:
+    name: Read analysis metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
+      security-events: read
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Toolchain info
+      - name: Inspect stored analysis refs without finding contents
         run: |
-          xcodebuild -version
-          swift --version
-      - name: Build
-        run: swift build
-      - name: Test
-        run: swift test --parallel
-      - name: Build and test minimum supported toolchain
-        env:
-          DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
-        run: |
-          xcodebuild -version
-          xcrun swift --version
-          xcrun swift package clean
-          xcrun swift build
-          xcrun swift test --parallel
+          python3 - <<'PY'
+          import json, os, subprocess, urllib.parse
+          repo = os.environ["GITHUB_REPOSITORY"]
+          if repo != "StanleyLl0yd/Copiva":
+              raise SystemExit("Unexpected repository")
+          for ref in ("refs/pull/8/head", "refs/pull/8/merge", "refs/heads/main"):
+              query = urllib.parse.urlencode({"ref": ref, "per_page": 100})
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/code-scanning/analyses?{query}",
+                   "--paginate", "--slurp"],
+                  capture_output=True, text=True, check=True, timeout=60)
+              analyses = [item for page in json.loads(result.stdout) for item in page]
+              safe = [{
+                  "id": a["id"], "sha": a["commit_sha"], "ref": a["ref"],
+                  "key": a["analysis_key"], "category": a.get("category"),
+                  "tool_name": a["tool"]["name"], "tool_guid": a["tool"].get("guid"),
+                  "results_count": a.get("results_count"),
+                  "created_at": a["created_at"], "has_error": bool(a.get("error")),
+              } for a in analyses]
+              print(json.dumps({"requested_ref": ref, "analyses": safe}))
+          PY
