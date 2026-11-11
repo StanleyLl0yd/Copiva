@@ -9,6 +9,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      actions: read
       security-events: read
     env:
       GH_TOKEN: ${{ github.token }}
@@ -42,4 +43,26 @@ jobs:
                           in ("medium", "high", "critical") or a["rule"].get("severity") == "error"]
               print(json.dumps({"ref": ref, "latest_analyses": safe,
                                 "open_alerts": len(alerts), "blocking_alerts": len(blocking)}))
+          PY
+      - name: Verify validation artifact metadata without payload output
+        run: |
+          python3 - <<'PY'
+          import io, json, os, subprocess, zipfile
+          repo = os.environ["GITHUB_REPOSITORY"]
+          if repo != "StanleyLl0yd/Copiva":
+              raise SystemExit("Unexpected repository")
+          result = subprocess.run(
+              ["gh", "api", f"repos/{repo}/actions/artifacts/13843649694/zip"],
+              capture_output=True, check=True, timeout=60)
+          with zipfile.ZipFile(io.BytesIO(result.stdout)) as archive:
+              metadata = json.loads(archive.read("BUILD-INFO.json"))
+          keys = ("version", "source_commit", "source_ref", "architectures",
+                  "code_signature", "apple_notarized", "publication_authorized",
+                  "archive", "archive_sha256")
+          safe = {key: metadata.get(key) for key in keys}
+          assert safe["version"] == "0.0.2"
+          assert safe["architectures"] == ["arm64"]
+          assert safe["publication_authorized"] is False
+          assert safe["apple_notarized"] is False
+          print(json.dumps({"validation_artifact": safe}))
           PY
