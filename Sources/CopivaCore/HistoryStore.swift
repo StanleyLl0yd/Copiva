@@ -1,5 +1,10 @@
 import Foundation
 import SQLite3
+#if canImport(Darwin)
+import Darwin
+#else
+import Glibc
+#endif
 
 public struct TextClip: Identifiable, Equatable, Sendable {
     public let id: Int64
@@ -59,10 +64,13 @@ public actor HistoryStore {
         } catch {
             throw HistoryError.storageUnavailable
         }
-        // macOS uses ancestor aliases such as /var; the selected directory/file were checked above.
-        let canonicalURL = directory.resolvingSymlinksInPath()
-            .appendingPathComponent("history.sqlite3")
-        let connection = try HistoryConnection(url: canonicalURL)
+        // Use POSIX canonicalization: Foundation can retain convenience aliases such as /var.
+        guard let resolved = realpath(directory.path, nil) else {
+            throw HistoryError.storageUnavailable
+        }
+        let physicalPath = String(cString: resolved) + "/history.sqlite3"
+        free(resolved)
+        let connection = try HistoryConnection(path: physicalPath)
         do {
             try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         } catch {
@@ -187,9 +195,9 @@ public actor HistoryStore {
 private final class HistoryConnection {
     private var handle: OpaquePointer?
 
-    init(url: URL) throws {
+    init(path: String) throws {
         var database: OpaquePointer?
-        let result = sqlite3_open_v2(url.path, &database,
+        let result = sqlite3_open_v2(path, &database,
             SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
                 | SQLITE_OPEN_NOFOLLOW, nil)
         guard result == SQLITE_OK, let database else {
