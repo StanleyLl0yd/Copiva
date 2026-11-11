@@ -322,7 +322,7 @@ final class HistoryStoreTests: XCTestCase {
         let real = directory.appendingPathComponent("real")
         let alias = directory.appendingPathComponent("alias")
         try FileManager.default.createDirectory(at: real, withIntermediateDirectories: true)
-        try FileManager.default.setAttributes([.posixPermissions: 0o755], atPath: real.path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: real.path)
         let target = real.appendingPathComponent("history.sqlite3")
         let bytes = Data("synthetic untouched file".utf8)
         try bytes.write(to: target)

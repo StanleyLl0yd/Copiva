@@ -49,7 +49,7 @@ public actor HistoryStore {
             guard attributes[.type] as? FileAttributeType == .typeDirectory else {
                 throw HistoryError.invalidLocation
             }
-            try manager.setAttributes([.posixPermissions: 0o700], atPath: directory.path)
+            try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
             if manager.fileExists(atPath: url.path) {
                 let attributes = try manager.attributesOfItem(atPath: url.path)
                 guard attributes[.type] as? FileAttributeType == .typeRegular else {
@@ -63,7 +63,7 @@ public actor HistoryStore {
         }
         let connection = try HistoryConnection(url: url)
         do {
-            try manager.setAttributes([.posixPermissions: 0o600], atPath: url.path)
+            try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         } catch {
             throw HistoryError.storageUnavailable
         }
