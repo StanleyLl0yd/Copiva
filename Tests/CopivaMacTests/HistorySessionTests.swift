@@ -90,4 +90,44 @@ final class HistorySessionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: path), bytes)
         await session.close()
     }
+    func testCapturePersistsNewCopiesAndSuppressesOwnWritesAcrossSession() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("copiva-session-tests-\(UUID().uuidString)")
+        let suite = "copiva-session-tests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let board = NSPasteboard(name: .init(suite))
+        defer {
+            board.releaseGlobally()
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        board.clearContents()
+        board.setString("synthetic before consent", forType: .string)
+        let session = HistorySession(directory: directory, defaults: defaults, pasteboard: board)
+        await session.open()
+        session.setRecording(true, consent: true)
+        await session.pollOnce()
+        XCTAssertTrue(session.clips.isEmpty)
+        board.clearContents()
+        board.setString("synthetic new copy", forType: .string)
+        await session.pollOnce()
+        let clip = try XCTUnwrap(session.clips.first)
+        XCTAssertEqual(clip.text, "synthetic new copy")
+        XCTAssertEqual(session.clips.count, 1)
+        XCTAssertTrue(session.copy(clip))
+        await session.pollOnce()
+        XCTAssertEqual(session.clips, [clip])
+        session.setRecording(false)
+        board.clearContents()
+        board.setString("synthetic paused copy", forType: .string)
+        await session.pollOnce()
+        XCTAssertEqual(session.clips, [clip])
+        await session.close()
+        let reopened = HistorySession(directory: directory, defaults: defaults, pasteboard: board)
+        await reopened.open()
+        XCTAssertEqual(reopened.clips, [clip])
+        XCTAssertFalse(reopened.isRecording)
+        await reopened.close()
+    }
+
 }

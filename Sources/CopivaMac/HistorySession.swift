@@ -125,7 +125,13 @@ public final class HistorySession {
             guard !Task.isCancelled, isReady, reloadGeneration == generation,
                   query == expectedQuery else { return }
             clips = []
-            errorMessage = "History could not be searched. Keep the search under 512 bytes and 32 words."
+            if error as? HistoryError == .invalidQuery {
+                errorMessage = "Keep the search under 512 bytes and 32 words."
+            } else {
+                setRecording(false)
+                isReady = false
+                errorMessage = "History could not be read. Recording stopped and existing files have been kept."
+            }
         }
     }
 
