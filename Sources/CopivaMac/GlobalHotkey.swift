@@ -128,7 +128,7 @@ private let copivaHotkeyHandler: EventHandlerUPP = { _, event, context in
                                   EventParamType(typeEventHotKeyID), nil,
                                   MemoryLayout<EventHotKeyID>.size, nil, &eventID)
     guard result == noErr else { return result }
-    return MainActor.assumeIsolated {
-        Unmanaged<GlobalHotkey>.fromOpaque(context).takeUnretainedValue().receive(eventID)
-    }
+    let hotkey = Unmanaged<GlobalHotkey>.fromOpaque(context).takeUnretainedValue()
+    // Application event-target callbacks run on AppKit's main event loop.
+    return MainActor.assumeIsolated { hotkey.receive(eventID) }
 }
