@@ -142,7 +142,6 @@ final class ClipboardMonitorTests: XCTestCase {
     }
 }
 
-@MainActor
 private final class ChangingProvider: NSObject, NSPasteboardItemDataProvider {
     let board: NSPasteboard
     var originalCount = -1
