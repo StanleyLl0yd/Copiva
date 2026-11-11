@@ -10,6 +10,11 @@ on:
       - scripts/package_app.py
       - .github/workflows/release.yml
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a matching owner-authorized release from main
+        type: boolean
+        default: false
 permissions: {}
 concurrency:
   group: numeric-release-${{ github.ref }}
@@ -27,11 +32,14 @@ jobs:
     outputs:
       artifact_name: ${{ steps.package.outputs.artifact_name }}
       version: ${{ steps.package.outputs.version }}
+      publication_authorized: ${{ steps.package.outputs.publication_authorized }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+      - name: Test publication authorization policy
+        run: python3 -m unittest discover -s scripts/tests -v
       - name: Test the minimum supported toolchain
         run: xcrun swift test --parallel
       - name: Package and verify numeric app and ZIP
@@ -53,7 +61,7 @@ jobs:
   publish:
     name: Publish verified numeric GitHub Release
     needs: build
-    if: github.repository == 'StanleyLl0yd/Copiva' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.repository == 'StanleyLl0yd/Copiva' && github.ref == 'refs/heads/main' && needs.build.outputs.publication_authorized == 'true' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -79,7 +87,7 @@ jobs:
               args = ["gh", "api", path] + (["--paginate", "--slurp"] if pages else [])
               result = subprocess.run(args, check=True, capture_output=True, text=True, timeout=30)
               return json.loads(result.stdout)
-          required = ("macOS 26 / Swift", "Analyze (swift)")
+          required = ("macOS 26 / Swift", "Analyze (swift)", "Analyze (python)")
           deadline, previous = time.monotonic() + 1800, None
           while time.monotonic() < deadline:
               response = api(f"repos/{repo}/commits/{sha}/check-runs?per_page=100")
@@ -178,6 +186,7 @@ jobs:
           metadata = json.loads((destination / "BUILD-INFO.json").read_text(encoding="utf-8"))
           if (metadata["source_commit"] != sha or metadata["release_tag"] != tag
                   or metadata.get("version") != version or metadata["source_ref"] != "refs/heads/main"
+                  or metadata.get("publication_authorized") is not True
                   or metadata["source_repository"] != repo
                   or metadata["architectures"] != ["arm64"]
                   or metadata["code_signature"] != "ad-hoc"
