@@ -1,6 +1,11 @@
 name: Read CodeQL metadata and alert counts
 on:
   workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: Numeric validation artifact ID
+        type: string
+        default: '13844714158'
 permissions: {}
 jobs:
   metadata:
@@ -13,6 +18,7 @@ jobs:
       security-events: read
     env:
       GH_TOKEN: ${{ github.token }}
+      ARTIFACT_ID: ${{ inputs.artifact_id }}
     steps:
       - name: Read refs and counts without finding contents
         run: |
@@ -47,12 +53,15 @@ jobs:
       - name: Verify validation artifact metadata without payload output
         run: |
           python3 - <<'PY'
-          import io, json, os, subprocess, zipfile
+          import io, json, os, re, subprocess, zipfile
           repo = os.environ["GITHUB_REPOSITORY"]
           if repo != "StanleyLl0yd/Copiva":
               raise SystemExit("Unexpected repository")
+          artifact_id = os.environ["ARTIFACT_ID"]
+          if not re.fullmatch(r"[0-9]+", artifact_id):
+              raise SystemExit("Unexpected artifact ID")
           result = subprocess.run(
-              ["gh", "api", f"repos/{repo}/actions/artifacts/13843649694/zip"],
+              ["gh", "api", f"repos/{repo}/actions/artifacts/{artifact_id}/zip"],
               capture_output=True, check=True, timeout=60)
           with zipfile.ZipFile(io.BytesIO(result.stdout)) as archive:
               metadata = json.loads(archive.read("BUILD-INFO.json"))
