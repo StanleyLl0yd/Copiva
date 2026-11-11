@@ -17,6 +17,7 @@ public final class ClipboardMonitor {
     private let pasteboard: NSPasteboard
     private var lastChangeCount: Int
     public private(set) var isRecording = false
+    public private(set) var lastWriteChangeCount: Int?
 
     public init(pasteboard: NSPasteboard = .general) {
         self.pasteboard = pasteboard
@@ -51,6 +52,7 @@ public final class ClipboardMonitor {
     /// Only an explicit Copy/Paste action may replace the user's current clipboard.
     @discardableResult
     public func copyText(_ text: String) -> Bool {
+        lastWriteChangeCount = nil
         guard !text.isEmpty, text.utf8.count <= HistoryStore.maximumTextBytes else { return false }
         let item = NSPasteboardItem()
         guard item.setString(text, forType: .string),
@@ -59,6 +61,8 @@ public final class ClipboardMonitor {
             return false
         }
         pasteboard.clearContents()
-        return pasteboard.writeObjects([item])
+        guard pasteboard.writeObjects([item]) else { return false }
+        lastWriteChangeCount = pasteboard.changeCount
+        return true
     }
 }
