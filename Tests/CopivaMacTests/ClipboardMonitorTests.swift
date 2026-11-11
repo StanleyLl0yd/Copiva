@@ -150,9 +150,9 @@ final class ClipboardMonitorTests: XCTestCase {
     func testDeniedAccessNeverRequestsPayloadAndDoesNotConsumeAllowedFutureRead() throws {
         let board = board()
         defer { board.releaseGlobally() }
-        var denied = true
+        let permission = SyntheticClipboardPermission()
         let monitor = ClipboardMonitor(pasteboard: board, accessBehavior: {
-            denied ? .alwaysDeny : .alwaysAllow
+            permission.denied ? .alwaysDeny : .alwaysAllow
         })
         monitor.setRecording(true)
         let provider = CountingProvider()
@@ -165,7 +165,7 @@ final class ClipboardMonitorTests: XCTestCase {
             XCTAssertEqual($0 as? ClipboardReadError, .accessDenied)
         }
         XCTAssertEqual(provider.calls, 0)
-        denied = false
+        permission.denied = false
         XCTAssertEqual(try monitor.readNewText(
             sourceBundleID: "test.synthetic.app", excludedBundleIDs: []), "synthetic allowed copy")
         XCTAssertEqual(provider.calls, 1)
@@ -195,4 +195,9 @@ private final class CountingProvider: NSObject, NSPasteboardItemDataProvider {
         calls += 1
         item.setString("synthetic allowed copy", forType: type)
     }
+}
+
+@MainActor
+private final class SyntheticClipboardPermission {
+    var denied = true
 }
