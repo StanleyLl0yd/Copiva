@@ -1,4 +1,4 @@
-name: Read CodeQL analysis metadata
+name: Read CodeQL metadata and alert counts
 on:
   workflow_dispatch:
 permissions: {}
@@ -13,26 +13,33 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Inspect stored analysis refs without finding contents
+      - name: Read refs and counts without finding contents
         run: |
           python3 - <<'PY'
           import json, os, subprocess, urllib.parse
           repo = os.environ["GITHUB_REPOSITORY"]
           if repo != "StanleyLl0yd/Copiva":
               raise SystemExit("Unexpected repository")
-          for ref in ("refs/pull/8/head", "refs/pull/8/merge", "refs/heads/main"):
+          def api(path):
+              result = subprocess.run(["gh", "api", path, "--paginate", "--slurp"],
+                  capture_output=True, text=True, timeout=60)
+              if result.returncode:
+                  raise RuntimeError("Read-only security metadata endpoint unavailable")
+              return [item for page in json.loads(result.stdout) for item in page]
+          for ref in ("refs/pull/11/head", "refs/pull/12/head", "refs/pull/13/head", "refs/heads/main"):
               query = urllib.parse.urlencode({"ref": ref, "per_page": 100})
-              result = subprocess.run(
-                  ["gh", "api", f"repos/{repo}/code-scanning/analyses?{query}",
-                   "--paginate", "--slurp"],
-                  capture_output=True, text=True, check=True, timeout=60)
-              analyses = [item for page in json.loads(result.stdout) for item in page]
-              safe = [{
-                  "id": a["id"], "sha": a["commit_sha"], "ref": a["ref"],
-                  "key": a["analysis_key"], "category": a.get("category"),
-                  "tool_name": a["tool"]["name"], "tool_guid": a["tool"].get("guid"),
-                  "results_count": a.get("results_count"),
-                  "created_at": a["created_at"], "has_error": bool(a.get("error")),
-              } for a in analyses]
-              print(json.dumps({"requested_ref": ref, "analyses": safe}))
+              analyses = api(f"repos/{repo}/code-scanning/analyses?{query}")
+              latest = {}
+              for analysis in analyses:
+                  key = (analysis["tool"]["name"], analysis.get("category"))
+                  latest.setdefault(key, analysis)
+              safe = [{"sha": a["commit_sha"], "category": a.get("category"),
+                       "results_count": a.get("results_count"),
+                       "created_at": a["created_at"], "has_error": bool(a.get("error"))}
+                      for a in latest.values()]
+              alerts = api(f"repos/{repo}/code-scanning/alerts?state=open&{query}")
+              blocking = [a for a in alerts if a["rule"].get("security_severity_level")
+                          in ("medium", "high", "critical") or a["rule"].get("severity") == "error"]
+              print(json.dumps({"ref": ref, "latest_analyses": safe,
+                                "open_alerts": len(alerts), "blocking_alerts": len(blocking)}))
           PY
