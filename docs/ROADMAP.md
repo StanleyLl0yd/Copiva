@@ -30,7 +30,7 @@ Text capture, local history, and the keyboard picker are implemented. The immedi
 
 ## M3 — UX and localization
 - [ ] Open the picker near the text caret. Fall back to the pointer or a visible position on the current screen when the caret is unavailable.
-- [ ] Verify keyboard navigation and focus restoration with the caret picker. Put secondary actions such as pinning and deleting in a keyboard-accessible actions menu.
+- [ ] Verify keyboard navigation, focus restoration, and that the caret picker does not interfere with clicks in the destination app. Put secondary actions such as pinning and deleting in a keyboard-accessible actions menu.
 - [ ] Add compact previews: a few lines of text, an image thumbnail, or a file name. Open a larger preview on request.
 - [ ] Add quick filters for text, links, images, and files once the corresponding types are captured.
 - [ ] Preferences, themes, RU/EN localization and launch-at-login
